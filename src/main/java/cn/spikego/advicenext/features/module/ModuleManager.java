@@ -5,9 +5,11 @@ import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import cn.spikego.advicenext.AdviceNext;
+import cn.spikego.advicenext.features.module.impl.combat.AutoClicker;
 import cn.spikego.advicenext.features.module.impl.movement.*;
-import cn.spikego.advicenext.features.module.impl.render.ClickGui;
-import cn.spikego.advicenext.features.module.impl.render.HUD;
+import cn.spikego.advicenext.features.module.impl.render.*;
+import cn.spikego.advicenext.features.module.impl.misc.*;
+import cn.spikego.advicenext.features.module.impl.world.*;
 import cn.spikego.advicenext.features.value.AbstractSetting;
 
 public final class ModuleManager {
@@ -19,6 +21,8 @@ public final class ModuleManager {
         addModule(new Sprint());
         addModule(new HUD());
         addModule(new ClickGui());
+        addModule(new AutoClicker());
+        addModule(new FastPlace());
     }
 
     private static void addModule(Module module) {

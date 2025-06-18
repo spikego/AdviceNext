@@ -4,6 +4,7 @@ import cn.spikego.advicenext.event.impl.ChatEvent;
 import cn.spikego.advicenext.event.impl.KeyboardEvent;
 import cn.spikego.advicenext.event.impl.Render2DEvent;
 import cn.spikego.advicenext.event.impl.TickEvent;
+import cn.spikego.advicenext.features.notification.NotificationManager;
 import cn.spikego.advicenext.features.value.AbstractSetting;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.world.tick.Tick;
@@ -37,11 +38,23 @@ public class Module {
     public void enable() {
         this.enabled = true;
         onEnable();
+        NotificationManager.getInstance().addNotification(
+                "Module",
+                this.name + " has been enabled",
+                NotificationManager.NotificationType.INFO,
+                3000 // 3秒
+        );
     }
 
     public void disable() {
         this.enabled = false;
         onDisable();
+        NotificationManager.getInstance().addNotification(
+                "Module",
+                this.name + " has been disabled",
+                NotificationManager.NotificationType.INFO,
+                3000 // 3秒
+        );
     }
 
     public void toggle() {
