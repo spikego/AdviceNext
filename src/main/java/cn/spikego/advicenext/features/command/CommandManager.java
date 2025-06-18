@@ -15,6 +15,9 @@ public class CommandManager {
 
     public static void initialize() {
         commands.add(new HelpCommand());
+        commands.add(new ConfigCommand());
+        commands.add(new ScriptCommand());
+        commands.add(new DebugCommand());
     }
 
     public static void processCommand(String input) {
@@ -47,7 +50,7 @@ public class CommandManager {
         if (mc.player == null || mc.world == null) {
             return;
         }
-        mc.inGameHud.getChatHud().addMessage(Text.of(message));
+        mc.inGameHud.getChatHud().addMessage(Text.of("§c[AdviceNext]§f"+message));
     }
 
     public static String getCommandPrefix() {
