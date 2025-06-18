@@ -12,11 +12,11 @@
 		"sources": "https://github.com/spikego/AdviceNext"
 	},
 	"license": "CC0-1.0",
-	"icon": "assets/advice-next/icon.png",
+	"icon": "assets/advicenext/icon.png",
 	"environment": "*",
 	"entrypoints": {
 		"main": [
-			"cn.spikego.advicenext.AdviceNext"
+          "cn.advicenext.AdviceNext"
 		]
 	},
 	"mixins": [

@@ -1,6 +1,6 @@
 {
   "required": true,
-  "package": "cn.spikego.advicenext.mixin",
+  "package": "cn.advicenext.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
     "minecraft.client.MixinMinecraftClient"
@@ -10,9 +10,11 @@
   },
   "client": [
     "minecraft.client.MixinKeyboard",
+    "minecraft.client.MixinRenderTickCounter",
     "minecraft.client.MixinWindow",
     "minecraft.gui.MixinInGameHud",
     "minecraft.gui.MixinTitleScreen",
-    "minecraft.network.MixinClientPlayNetworkHandler"
+    "minecraft.network.MixinClientPlayNetworkHandler",
+    "minecraft.render.MixinCamera"
   ]
 }
