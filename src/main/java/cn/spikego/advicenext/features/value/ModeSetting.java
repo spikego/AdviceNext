@@ -17,4 +17,13 @@ public class ModeSetting extends AbstractSetting<String> {
     public void setModes(List<String> modes) {
         this.modes = modes;
     }
+    
+    /**
+     * Cycles to the next mode in the list
+     */
+    public void cycle() {
+        int index = modes.indexOf(getValue());
+        index = (index + 1) % modes.size();
+        setValue(modes.get(index));
+    }
 }

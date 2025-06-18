@@ -35,7 +35,10 @@ dependencies {
 	// Fabric API. This is technically optional, but you probably want it anyway.
 	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
 	implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8"
-
+	
+	// WebSocket dependencies
+	implementation "org.java-websocket:Java-WebSocket:1.5.3"
+	implementation "com.google.code.gson:gson:2.10.1"
 }
 
 processResources {

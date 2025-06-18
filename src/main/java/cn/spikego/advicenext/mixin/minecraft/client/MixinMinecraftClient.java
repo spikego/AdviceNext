@@ -3,6 +3,7 @@ package cn.spikego.advicenext.mixin.minecraft.client;
 import cn.spikego.advicenext.event.impl.TickEvent;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.gui.screen.TitleScreen;
 import net.minecraft.client.util.Window;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -35,6 +36,5 @@ public class MixinMinecraftClient {
     private void init(CallbackInfo Info) {
         EventBus.post(new TickEvent());
     }
-
 
 }

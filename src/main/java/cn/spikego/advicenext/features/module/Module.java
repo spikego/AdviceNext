@@ -68,4 +68,7 @@ public class Module {
         return key;
     }
 
+    public Category getCategory() {
+        return category;
+    }
 }

@@ -6,6 +6,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 
 import cn.spikego.advicenext.AdviceNext;
 import cn.spikego.advicenext.features.module.impl.movement.*;
+import cn.spikego.advicenext.features.module.impl.render.ClickGui;
 import cn.spikego.advicenext.features.module.impl.render.HUD;
 import cn.spikego.advicenext.features.value.AbstractSetting;
 
@@ -17,6 +18,7 @@ public final class ModuleManager {
         AdviceNext.LOGGER.info("ModuleManager is initializing!");
         addModule(new Sprint());
         addModule(new HUD());
+        addModule(new ClickGui());
     }
 
     private static void addModule(Module module) {
