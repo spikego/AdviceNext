@@ -12,6 +12,7 @@
     "minecraft.client.MixinKeyboard",
     "minecraft.client.MixinWindow",
     "minecraft.gui.MixinInGameHud",
+    "minecraft.gui.MixinTitleScreen",
     "minecraft.network.MixinClientPlayNetworkHandler"
   ]
 }
