@@ -1,4 +1,4 @@
-package cn.advicenext.utility;
+package cn.advicenext.utility.client.math;
 
 public class Vec2dUtils {
 
