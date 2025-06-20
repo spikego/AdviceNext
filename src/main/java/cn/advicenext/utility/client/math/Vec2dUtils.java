@@ -22,6 +22,4 @@ public class Vec2dUtils {
         double len2 = length(x2, y2);
         return Math.acos(dot / (len1 * len2));
     }
-
-    // 可根据需要扩展更多2D向量操作
 }

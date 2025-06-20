@@ -11,6 +11,7 @@ import cn.advicenext.features.module.impl.render.*;
 import cn.advicenext.features.module.impl.misc.*;
 import cn.advicenext.features.module.impl.world.*;
 import cn.advicenext.features.module.impl.client.*;
+import cn.advicenext.features.module.impl.player.*;
 import cn.advicenext.features.value.AbstractSetting;
 
 public final class ModuleManager {
@@ -29,6 +30,9 @@ public final class ModuleManager {
         addModule(new Crasher());
         addModule(new ESP());
         addModule(new MotionCamera());
+        addModule(new Blink());
+        addModule(new NoHurtCam());
+        addModule(new ClientTheme());
     }
 
     private static void addModule(Module module) {

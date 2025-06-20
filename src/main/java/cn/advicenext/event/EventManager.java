@@ -61,4 +61,13 @@ public class EventManager {
             }
         }
     }
+
+    @Listener
+    public void onPacket(PacketEvent event) {
+        for (Module module : modules) {
+            if (module.getEnabled()) {
+                module.onPacket(event);
+            }
+        }
+    }
 }

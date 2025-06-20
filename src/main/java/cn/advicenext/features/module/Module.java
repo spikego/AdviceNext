@@ -1,7 +1,6 @@
 package cn.advicenext.features.module;
 
-import cn.advicenext.event.impl.Render2DEvent;
-import cn.advicenext.event.impl.TickEvent;
+import cn.advicenext.event.impl.*;
 import cn.advicenext.features.notification.NotificationManager;
 import cn.advicenext.features.value.AbstractSetting;
 import net.minecraft.client.MinecraftClient;
@@ -31,6 +30,8 @@ public class Module {
     public void onTick(TickEvent event) {}
 
     public void onRender2D(Render2DEvent event) {}
+
+    public void onPacket(PacketEvent event) {}
 
     public void enable() {
         this.enabled = true;

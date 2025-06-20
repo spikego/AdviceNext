@@ -3,7 +3,8 @@
   "package": "cn.advicenext.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
-    "minecraft.client.MixinMinecraftClient"
+    "minecraft.client.MixinMinecraftClient",
+    "minecraft.network.MixinClientConnection"
   ],
   "injectors": {
     "defaultRequire": 1
@@ -15,6 +16,7 @@
     "minecraft.gui.MixinInGameHud",
     "minecraft.gui.MixinTitleScreen",
     "minecraft.network.MixinClientPlayNetworkHandler",
-    "minecraft.render.MixinCamera"
+    "minecraft.render.MixinCamera",
+    "minecraft.render.MixinGameRenderer"
   ]
 }

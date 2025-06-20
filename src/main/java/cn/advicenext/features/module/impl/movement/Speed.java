@@ -25,6 +25,13 @@ public class Speed extends Module {
         this.enabled = false;
     }
 
+    int airTicks = 0;
+
+    @Override
+    public void onEnable() {
+        airTicks = 0;
+    }
+
     @Override
     public void onTick(TickEvent event) {
         if (mode.getValue().equals("WatchdogHop")) {
@@ -65,10 +72,55 @@ public class Speed extends Module {
             autoJump();
         }
 
+        // 在 Speed.java 的 onTick 方法 WatchdogLowhop 分支内添加
         if (mode.getValue().equals("WatchdogLowhop")) {
-            final double BASE_HORIZONTAL_MODIFIER = 0.0004;
-            final double HORIZONTAL_SPEED_AMPLIFIER = 0.0007;
-            final double VERTICAL_SPEED_AMPLIFIER = 0.0004;
+            if (mc.player == null) return;
+            if (mc.player.isOnGround()) {
+                airTicks = 0;
+            } else {
+                airTicks++;
+            }
+
+            switch (airTicks) {
+                case 1 -> {
+                    // 先设置Y速度
+                    mc.player.setVelocity(new Vec3d(mc.player.getVelocity().x, 0.39, mc.player.getVelocity().z));
+                    // 再应用withStrafe
+                    Vec3d strafeVelocity = MoveUtils.withStrafe(
+                            mc.player.getVelocity(),
+                            0.2875,
+                            1.0,
+                            mc.player.input.getMovementInput().y,
+                            mc.player.input.getMovementInput().x,
+                            mc.player.getYaw()
+                    );
+                    mc.player.setVelocity(strafeVelocity);
+                }
+                case 3 ->
+                        mc.player.setVelocity(new Vec3d(mc.player.getVelocity().x, mc.player.getVelocity().y - 0.13, mc.player.getVelocity().z));
+                case 4 ->
+                        mc.player.setVelocity(new Vec3d(mc.player.getVelocity().x, mc.player.getVelocity().y - 0.2, mc.player.getVelocity().z));
+            }
+
+            if (mc.player.hasStatusEffect(StatusEffects.SLOW_FALLING) || mc.player.hasStatusEffect(StatusEffects.LEVITATION)) {
+                mc.player.addVelocity(0.0, -0.1, 0.0);
+                airTicks = 0;
+            }
+
+            int speedAmp = mc.player.hasStatusEffect(StatusEffects.SPEED)
+                    ? Objects.requireNonNull(mc.player.getStatusEffect(StatusEffects.SPEED)).getAmplifier() : 0;
+            if (speedAmp == 2) {
+                if (airTicks == 1 || airTicks == 2 || airTicks == 5 || airTicks == 6 || airTicks == 8) {
+                    Vec3d v = mc.player.getVelocity();
+                    mc.player.setVelocity(v.multiply(1.2, 1.0, 1.2));
+                }
+            }
+
+            if (mc.player.isOnGround()) {
+                airTicks = 0;
+            }
+
+            autoJump();
         }
     }
 

@@ -31,18 +31,18 @@ public class MotionCamera extends Module {
     }
 
     public static double getOffset() {
-        return INSTANCE.offset.getValue();
+        return offset.getValue();
     }
 
     public static double getMaxOffset() {
-        return INSTANCE.maxOffset.getValue();
+        return maxOffset.getValue();
     }
 
     public static boolean isSmooth() {
-        return INSTANCE.smooth.getValue();
+        return smooth.getValue();
     }
 
     public static boolean isOnlyThirdPerson() {
-        return INSTANCE.onlyThirdPerson.getValue();
+        return onlyThirdPerson.getValue();
     }
 }

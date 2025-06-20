@@ -1,12 +1,13 @@
 package cn.advicenext.gui.colors;
 
+import cn.advicenext.features.module.impl.client.ClientTheme;
 import net.minecraft.util.math.MathHelper;
 
 import java.awt.Color;
 
 public class Colors {
-    private static Color color1 = new Color(193, 0, 0, 255); // 粉色
-    private static Color color2 = new Color(255, 255, 255, 255); // 白色
+    private static Color color1 = new Color(ClientTheme.INSTANCE.getThemeRed1(), ClientTheme.INSTANCE.getThemeGreen1(), ClientTheme.INSTANCE.getThemeBlue1(), 255); // 粉色
+    private static Color color2 = new Color(ClientTheme.INSTANCE.getThemeRed2(), ClientTheme.INSTANCE.getThemeGreen2(), ClientTheme.INSTANCE.getThemeBlue2(), 255); // 白色
 
     private static Color blendColors(Color color1, Color color2, float progress) {
         int r = (int) (color1.getRed() * (1 - progress) + color2.getRed() * progress);
