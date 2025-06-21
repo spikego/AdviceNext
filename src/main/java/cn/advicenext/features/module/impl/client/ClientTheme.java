@@ -1,8 +1,10 @@
 package cn.advicenext.features.module.impl.client;
 
+import cn.advicenext.event.impl.TickEvent;
 import cn.advicenext.features.value.slider.IntSetting;
 import cn.advicenext.features.module.Module;
 import cn.advicenext.features.module.Category;
+import cn.advicenext.gui.colors.Colors;
 
 public class ClientTheme extends Module{
     public static ClientTheme INSTANCE;
@@ -22,34 +24,19 @@ public class ClientTheme extends Module{
         this.settings.add(themeGreen2);
         this.settings.add(themeBlue2);
         INSTANCE = this;
+        this.enabled = true;
     }
 
     @Override
-    public void onEnable() {
-        enabled = false;
+        public void onDisable() {
+        enabled = true;
     }
 
-    public int getThemeRed1() {
-        return themeRed.getValue();
+    @Override
+    public void onTick(TickEvent event) {
+        Colors.setColors(
+            new java.awt.Color(themeRed.getValue(), themeGreen.getValue(), themeBlue.getValue()),
+            new java.awt.Color(themeRed2.getValue(), themeGreen2.getValue(), themeBlue2.getValue())
+        );
     }
-
-    public int getThemeGreen1() {
-        return themeGreen.getValue();
-    }
-
-    public int getThemeBlue1() {
-        return themeBlue.getValue();
-    }
-
-    public int getThemeRed2() {
-        return themeRed2.getValue();
-    }
-    public int getThemeGreen2() {
-        return themeGreen2.getValue();
-    }
-
-    public int getThemeBlue2() {
-        return themeBlue2.getValue();
-    }
-
 }

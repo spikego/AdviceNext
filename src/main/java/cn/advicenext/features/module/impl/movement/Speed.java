@@ -70,6 +70,7 @@ public class Speed extends Module {
                 );
             }
             autoJump();
+            mc.player.setSprinting(true);
         }
 
         // 在 Speed.java 的 onTick 方法 WatchdogLowhop 分支内添加
@@ -121,6 +122,7 @@ public class Speed extends Module {
             }
 
             autoJump();
+            mc.player.setSprinting(true);
         }
     }
 

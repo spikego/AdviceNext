@@ -4,6 +4,7 @@
   "compatibilityLevel": "JAVA_21",
   "mixins": [
     "minecraft.client.MixinMinecraftClient",
+    "minecraft.entity.MixinPlayerEntity",
     "minecraft.network.MixinClientConnection"
   ],
   "injectors": {

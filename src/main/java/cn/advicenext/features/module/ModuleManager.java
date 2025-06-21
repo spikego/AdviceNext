@@ -33,6 +33,8 @@ public final class ModuleManager {
         addModule(new Blink());
         addModule(new NoHurtCam());
         addModule(new ClientTheme());
+        addModule(new KeepSprint());
+        addModule(new Fly());
     }
 
     private static void addModule(Module module) {
