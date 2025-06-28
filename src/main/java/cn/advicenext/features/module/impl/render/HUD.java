@@ -6,6 +6,7 @@ import cn.advicenext.features.module.Module;
 import cn.advicenext.features.module.ModuleManager;
 import cn.advicenext.features.notification.NotificationManager;
 import cn.advicenext.features.value.BooleanSetting;
+import cn.advicenext.features.value.StringSetting;
 import cn.advicenext.gui.colors.Colors;
 import org.lwjgl.glfw.GLFW;
 
@@ -30,7 +31,7 @@ public class HUD extends Module{
     @Override
     public void onRender2D(Render2DEvent event) {
         if (WaterMark.getValue()) {
-            event.getContext().drawText(mc.textRenderer, "AdviceNext", 10, 10, Colors.currentColor().getRGB(), true);
+            event.getContext().drawText(mc.textRenderer,"AdviceNext", 10, 10, Colors.currentColor().getRGB(), true);
         }
 
         if (ArrayList.getValue()) {
