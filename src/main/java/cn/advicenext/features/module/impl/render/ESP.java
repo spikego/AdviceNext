@@ -31,8 +31,11 @@ public class ESP extends Module {
 
         // 本地玩家插值位置和朝向
         PlayerEntity self = mc.player;
-        double camX = self.lastRenderX + (self.getX() - self.lastRenderX) * tickDelta;
-        double camY = self.lastRenderY + (self.getY() - self.lastRenderY) * tickDelta;
+        double camX = 0;
+        if (self != null) {
+            camX = self.lastRenderX + (self.getX() - self.lastRenderX) * tickDelta;
+        }
+        double camY = self.lastRenderY + (self.getY() - self.lastRenderY) * tickDelta + self.getEyeHeight(self.getPose());
         double camZ = self.lastRenderZ + (self.getZ() - self.lastRenderZ) * tickDelta;
         float camYaw = self.getYaw(tickDelta);
         float camPitch = self.getPitch(tickDelta);

@@ -2,6 +2,8 @@ plugins {
 	id 'fabric-loom' version "${loom_version}"
 	id 'maven-publish'
 	id 'org.jetbrains.kotlin.jvm'
+	id 'application'
+	id 'org.openjfx.javafxplugin' version '0.0.8'
 }
 
 version = project.mod_version
@@ -13,6 +15,7 @@ base {
 
 repositories {
 	mavenCentral()
+	maven { url 'https://jitpack.io' }
 	// Add repositories to retrieve artifacts from in here.
 	// You should only use this when depending on other mods because
 	// Loom adds the essential maven repositories to download Minecraft and libraries from automatically.
@@ -20,10 +23,16 @@ repositories {
 	// for more information about repositories.
 }
 
+
 fabricApi {
 	configureDataGeneration {
 		client = true
 	}
+}
+
+javafx {
+	version = "11.0.2"
+	modules = ['javafx.controls', 'javafx.fxml']
 }
 
 dependencies {
@@ -34,12 +43,35 @@ dependencies {
 
 	// Fabric API. This is technically optional, but you probably want it anyway.
 	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
-	implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8"
+	modImplementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8"
 	
 	// WebSocket dependencies
-	implementation "org.java-websocket:Java-WebSocket:1.5.3"
-	implementation "com.google.code.gson:gson:2.10.1"
-	implementation 'org.luaj:luaj-jse:3.0.1'
+	modImplementation "org.java-websocket:Java-WebSocket:1.5.3"
+	modImplementation "com.google.code.gson:gson:2.10.1"
+
+	//lwjgl
+	modImplementation "org.lwjgl:lwjgl-harfbuzz:3.3.3"
+	modImplementation "org.lwjgl:lwjgl-opengl:3.3.3"
+
+	//lua script
+	modImplementation('org.luaj:luaj-jse:3.0.1') {
+		transitive = false
+	}
+	include 'org.luaj:luaj-jse:3.0.1'
+
+	//javafx
+	modImplementation 'org.openjfx:javafx-controls:17.0.2'
+	modImplementation 'org.openjfx:javafx-fxml:17.0.2'
+	modImplementation 'org.openjfx:javafx-graphics:21.0.2'
+	modImplementation 'org.openjfx:javafx-base:17.0.2'
+	modImplementation 'org.openjfx:javafx-media:21.0.2'
+	modImplementation 'org.openjfx:javafx-web:17.0.2'
+
+	//others
+	modImplementation 'com.github.CCBlueX:mc-authlib:1.4.1'
+	include 'com.github.CCBlueX:mc-authlib:1.4.1'
+
+
 }
 
 processResources {
@@ -87,6 +119,7 @@ publishing {
 		// retrieving dependencies.
 	}
 }
+
 kotlin {
 	jvmToolchain(21)
 }

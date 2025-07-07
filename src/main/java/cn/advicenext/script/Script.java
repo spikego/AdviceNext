@@ -1,27 +1,52 @@
 package cn.advicenext.script;
 
-import org.luaj.vm2.Globals;
-
-import java.io.File;
-
-/**
- * 表示一个已加载的 Lua 脚本
- */
 public class Script {
     private final String name;
     private final String author;
     private final String version;
     private final String description;
-    private final File file;
-    private final Globals globals;
+    private final String content;
+    private boolean loaded = false;
     
-    public Script(String name, String author, String version, String description, File file, Globals globals) {
+    public Script(String name, String content) {
+        this.name = name;
+        this.author = "Unknown";
+        this.version = "1.0";
+        this.description = "No description";
+        this.content = content;
+    }
+    
+    public Script(String name, String author, String version, String description, String content) {
         this.name = name;
         this.author = author;
         this.version = version;
         this.description = description;
-        this.file = file;
-        this.globals = globals;
+        this.content = content;
+    }
+    
+    public void load() throws Exception {
+        // 简化版本：直接执行基础功能
+        loaded = true;
+        onEnable();
+    }
+    
+    public void unload() {
+        if (loaded) {
+            onDisable();
+            loaded = false;
+        }
+    }
+    
+    public void onEnable() {
+        // 脚本启用时调用
+    }
+    
+    public void onDisable() {
+        // 脚本禁用时调用
+    }
+    
+    public void onTick() {
+        // 每tick调用
     }
     
     public String getName() {
@@ -40,11 +65,7 @@ public class Script {
         return description;
     }
     
-    public File getFile() {
-        return file;
-    }
-    
-    public Globals getGlobals() {
-        return globals;
+    public boolean isLoaded() {
+        return loaded;
     }
 }

@@ -5,17 +5,21 @@ import cn.advicenext.features.module.Category;
 import cn.advicenext.features.module.Module;
 import cn.advicenext.features.value.ModeSetting;
 import cn.advicenext.features.value.slider.DoubleSetting;
+import cn.advicenext.features.value.BooleanSetting;
 import java.util.List;
 
 public class Fly extends Module {
     private final ModeSetting mode = new ModeSetting("Mode", "Select the fly mode", "Vanilla", List.of("Vanilla","Verus"));
     private final DoubleSetting speed = new DoubleSetting("Speed", "Vanilla fly speed",1.0, 5.0, 0.0, 0.1);
+    private final BooleanSetting vanillaBypass = new BooleanSetting("Vanilla Bypass", "Bypass vanilla fly detection", false);
+    private int tickCounter = 0;
 
     public Fly() {
         super("Fly", "Fly", Category.MOVEMENT);
         this.settings.add(mode);
         if ("Vanilla".equals(mode.getValue())) {
             this.settings.add(speed);
+            this.settings.add(vanillaBypass);
         }
     }
 
@@ -25,11 +29,15 @@ public class Fly extends Module {
             if (!this.settings.contains(speed)) {
                 this.settings.add(speed);
             }
+            if (!this.settings.contains(vanillaBypass)) {
+                this.settings.add(vanillaBypass);
+            }
         } else {
             this.settings.remove(speed);
+            this.settings.remove(vanillaBypass);
         }
 
-        if(mode.getValue() == "Vanilla"){
+        if("Vanilla".equals(mode.getValue())){
             // 在 onTick(TickEvent event) 方法中
             mc.player.setVelocity(0.0, 0.0, 0.0);
             mc.player.fallDistance = 0.0;
@@ -59,6 +67,12 @@ public class Fly extends Module {
 
 // 应用速度
             mc.player.setVelocity(horizontalX, verticalMovement, horizontalZ);
+            
+            // Vanilla Bypass
+            if (vanillaBypass.getValue() && tickCounter % 40 == 0) {
+                mc.player.setVelocity(mc.player.getVelocity().x, -0.04, mc.player.getVelocity().z);
+            }
+            tickCounter++;
         }
     }
 }

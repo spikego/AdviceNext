@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AdviceNext Debug Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header class="glass-panel">
+            <h1>AdviceNext Debug Dashboard</h1>
+            <div class="status">
+                <span id="connection-status">Connected</span>
+                <button id="refresh-btn">Refresh</button>
+            </div>
+        </header>
+
+        <div class="dashboard-grid">
+            <div class="panel glass-panel">
+                <h2>Modules</h2>
+                <div id="modules-list"></div>
+            </div>
+
+            <div class="panel glass-panel">
+                <h2>Console</h2>
+                <div id="console" class="console"></div>
+                <div class="console-input">
+                    <input type="text" id="command-input" placeholder="Enter command...">
+                    <button id="send-command">Send</button>
+                </div>
+            </div>
+
+            <div class="panel glass-panel">
+                <h2>Game Stream</h2>
+                <div id="game-stream">
+                    <canvas id="game-canvas" width="400" height="300"></canvas>
+                    <div class="stream-controls">
+                        <button id="start-stream">Start Stream</button>
+                        <button id="stop-stream">Stop Stream</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel glass-panel">
+                <h2>System Info</h2>
+                <div id="system-info">
+                    <div class="info-item">
+                        <span>FPS:</span>
+                        <span id="fps">0</span>
+                    </div>
+                    <div class="info-item">
+                        <span>Memory:</span>
+                        <span id="memory">0 MB</span>
+                    </div>
+                    <div class="info-item">
+                        <span>Position:</span>
+                        <span id="position">0, 0, 0</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

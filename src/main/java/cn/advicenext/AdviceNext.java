@@ -26,10 +26,9 @@ public class AdviceNext implements ModInitializer {
 			ConfigManager.getInstance().saveConfig();
 		}));
 
-		// 加载配置
-		ConfigManager.getInstance().loadConfig();
 
-		// 加载脚本
+
+		// 加载Kotlin脚本
 		ScriptManager.getInstance().loadScripts();
 
 		// 注册关闭钩子

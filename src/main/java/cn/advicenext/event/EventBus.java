@@ -26,6 +26,12 @@ public class EventBus {
             }
         }
     }
+    
+    public static void unregister(Object listener) {
+        listeners.values().forEach(list -> 
+            list.removeIf(lm -> lm.target == listener)
+        );
+    }
 
     public static void post(Object event) {
         List<ListenerMethod> methods = listeners.get(event.getClass());

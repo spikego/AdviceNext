@@ -6,6 +6,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 
 import cn.advicenext.AdviceNext;
 import cn.advicenext.features.module.impl.combat.*;
+import cn.advicenext.features.module.impl.exploit.AntiAim;
 import cn.advicenext.features.module.impl.movement.*;
 import cn.advicenext.features.module.impl.render.*;
 import cn.advicenext.features.module.impl.misc.*;
@@ -35,6 +36,9 @@ public final class ModuleManager {
         addModule(new ClientTheme());
         addModule(new KeepSprint());
         addModule(new Fly());
+        addModule(new Rotation());
+        addModule(new AntiAim());
+        addModule(new AFKGame());
     }
 
     private static void addModule(Module module) {

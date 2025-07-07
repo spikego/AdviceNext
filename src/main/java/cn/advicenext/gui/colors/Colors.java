@@ -27,6 +27,17 @@ public class Colors {
         color2 = c2;
     }
 
+    public static Color gradientColor(int index, int total) {
+        if (total <= 1) return currentColor();
+        
+        float baseProgress = MathHelper.clamp((System.currentTimeMillis() % 4000) / 2000f, 0f, 1f);
+        float indexOffset = (float) index / (total - 1) * 0.5f; // 50%的偏移范围
+        float progress = (baseProgress + indexOffset) % 1.0f;
+        
+        float blendFactor = progress <= 0.5f ? progress * 2 : (1 - progress) * 2;
+        return blendColors(color1, color2, blendFactor);
+    }
+    
     public static void showCurrentColors() {
 
     }

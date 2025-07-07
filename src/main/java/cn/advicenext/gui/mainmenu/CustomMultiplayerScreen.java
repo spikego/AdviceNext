@@ -20,7 +20,7 @@ public class CustomMultiplayerScreen extends MultiplayerScreen {
     @Override
     protected void init() {
         super.init();
-        
+
         // Find and replace the cancel button
         for (var child : this.children()) {
             if (child instanceof ButtonWidget button) {
@@ -29,13 +29,13 @@ public class CustomMultiplayerScreen extends MultiplayerScreen {
                     int y = button.getY();
                     int width = button.getWidth();
                     int height = button.getHeight();
-                    
+
                     this.remove(button);
-                    
+
                     ButtonWidget customButton = ButtonWidget.builder(Text.literal("Cancel"), b -> {
                         MinecraftClient.getInstance().setScreen(new MainMenuScreen());
                     }).dimensions(x, y, width, height).build();
-                    
+
                     this.addDrawableChild(customButton);
                     break;
                 }

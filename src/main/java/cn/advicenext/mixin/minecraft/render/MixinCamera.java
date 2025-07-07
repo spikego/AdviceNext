@@ -1,6 +1,7 @@
 package cn.advicenext.mixin.minecraft.render;
 
 import cn.advicenext.features.module.impl.render.MotionCamera;
+import cn.advicenext.features.module.impl.render.Rotation;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.client.render.Camera;
@@ -18,6 +19,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class MixinCamera {
     @Shadow
     protected abstract void setPos(double x, double y, double z);
+    
+    @Shadow
+    protected abstract void setRotation(float yaw, float pitch);
 
     private Vec3d currentPos = Vec3d.ZERO;
     private Vec3d lastPlayerVelocity = Vec3d.ZERO;
@@ -30,6 +34,15 @@ public abstract class MixinCamera {
     // 用于存储上一帧的时间，计算delta time
     private long lastFrameTime = System.nanoTime();
 
+    @Inject(method = "update", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/render/Camera;setPos(DDD)V", shift = At.Shift.AFTER), cancellable = true)
+    private void modifyCameraOrientation(BlockView area, Entity focusedEntity, boolean thirdPerson, boolean inverseView, float tickDelta, CallbackInfo ci) {
+        // Rotation模块处理 - 只在第三人称时处理，第一人称保持正常
+        if (Rotation.shouldUseServerRotation() && focusedEntity instanceof ClientPlayerEntity && thirdPerson) {
+            // 第三人称时保持摄像机视角不变，玩家模型旋转由其他mixin处理
+            // 这里不做任何摄像机旋转修改
+        }
+    }
+    
     @Inject(method = "update", at = @At("TAIL"))
     private void onCameraUpdate(BlockView area, Entity focusedEntity, boolean thirdPerson,
                                 boolean inverseView, float tickDelta, CallbackInfo ci) {

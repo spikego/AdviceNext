@@ -14,6 +14,7 @@
     "minecraft.client.MixinKeyboard",
     "minecraft.client.MixinRenderTickCounter",
     "minecraft.client.MixinWindow",
+    "minecraft.entity.MixinClientPlayerEntity",
     "minecraft.gui.MixinInGameHud",
     "minecraft.gui.MixinTitleScreen",
     "minecraft.network.MixinClientPlayNetworkHandler",

@@ -1,5 +1,6 @@
 package cn.advicenext.gui.mainmenu;
 
+import cn.advicenext.gui.clientmenu.AltManagerGui;
 import cn.advicenext.gui.colors.Colors;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
@@ -52,6 +53,7 @@ public class MainMenuScreen extends Screen {
         buttons.add(new MenuButton("Multiplayer", () -> openScreen(() -> new CustomMultiplayerScreen(this))));
         buttons.add(new MenuButton("Realms", () -> openScreen(() -> new CustomRealmsScreen(this))));
         buttons.add(new MenuButton("Options", () -> openScreen(() -> new CustomOptionsScreen(this, mc.options))));
+        buttons.add(new MenuButton("AltManager", () -> openScreen(() -> new AltManagerGui())));
         buttons.add(new MenuButton("Quit", () -> mc.stop()));
     }
     
@@ -87,8 +89,8 @@ public class MainMenuScreen extends Screen {
         
         // Calculate center area
         int centerWidth = 400;
-        int centerHeight = 300;
-        
+        int centerHeight = 350; // 原为300，向下增加高度以容纳更多内容
+
         // Apply animation to center area
         float scale = closingAnimation ? 
             1f - (0.2f * closeAnimation) : 
