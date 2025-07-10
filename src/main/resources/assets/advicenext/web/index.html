@@ -8,58 +8,99 @@
 </head>
 <body>
     <div class="container">
-        <header class="glass-panel">
+        <header class="header">
             <h1>AdviceNext Debug Dashboard</h1>
-            <div class="status">
-                <span id="connection-status">Connected</span>
-                <button id="refresh-btn">Refresh</button>
+            <div class="system-info">
+                <span id="fps">FPS: --</span>
+                <span id="memory">Memory: -- MB</span>
+                <span id="position">Pos: --, --, --</span>
             </div>
         </header>
 
-        <div class="dashboard-grid">
-            <div class="panel glass-panel">
-                <h2>Modules</h2>
-                <div id="modules-list"></div>
-            </div>
+        <nav class="nav-tabs">
+            <button class="tab-btn active" data-tab="modules">Modules</button>
+            <button class="tab-btn" data-tab="game">Game Control</button>
+            <button class="tab-btn" data-tab="players">Players</button>
+            <button class="tab-btn" data-tab="chat">Chat</button>
+            <button class="tab-btn" data-tab="console">Console</button>
+        </nav>
 
-            <div class="panel glass-panel">
-                <h2>Console</h2>
-                <div id="console" class="console"></div>
-                <div class="console-input">
-                    <input type="text" id="command-input" placeholder="Enter command...">
-                    <button id="send-command">Send</button>
+        <main class="main-content">
+            <!-- Modules Tab -->
+            <div class="tab-content active" id="modules">
+                <div class="modules-grid">
+                    <div class="module-list">
+                        <h3>Module List</h3>
+                        <div id="modulesList"></div>
+                    </div>
+                    <div class="module-settings">
+                        <h3>Settings</h3>
+                        <div id="moduleSettings">Select a module to view settings</div>
+                    </div>
                 </div>
             </div>
 
-            <div class="panel glass-panel">
-                <h2>Game Stream</h2>
-                <div id="game-stream">
-                    <canvas id="game-canvas" width="400" height="300"></canvas>
-                    <div class="stream-controls">
-                        <button id="start-stream">Start Stream</button>
-                        <button id="stop-stream">Stop Stream</button>
+            <!-- Game Control Tab -->
+            <div class="tab-content" id="game">
+                <div class="game-controls">
+                    <div class="control-section">
+                        <h3>Movement Control</h3>
+                        <div class="movement-grid">
+                            <button class="control-btn" data-action="forward">↑</button>
+                            <button class="control-btn" data-action="left">←</button>
+                            <button class="control-btn" data-action="back">↓</button>
+                            <button class="control-btn" data-action="right">→</button>
+                            <button class="control-btn" data-action="jump">Jump</button>
+                            <button class="control-btn" data-action="sneak">Sneak</button>
+                        </div>
+                    </div>
+                    <div class="control-section">
+                        <h3>Game Actions</h3>
+                        <button class="action-btn" onclick="dashboard.takeScreenshot()">Screenshot</button>
+                        <button class="action-btn" onclick="dashboard.disconnectGame()">Disconnect</button>
+                        <button class="action-btn danger" onclick="dashboard.exitGame()">Exit Game</button>
                     </div>
                 </div>
             </div>
 
-            <div class="panel glass-panel">
-                <h2>System Info</h2>
-                <div id="system-info">
-                    <div class="info-item">
-                        <span>FPS:</span>
-                        <span id="fps">0</span>
+            <!-- Players Tab -->
+            <div class="tab-content" id="players">
+                <div class="players-section">
+                    <div class="minimap">
+                        <h3>Mini Map</h3>
+                        <canvas id="minimap" width="300" height="300"></canvas>
                     </div>
-                    <div class="info-item">
-                        <span>Memory:</span>
-                        <span id="memory">0 MB</span>
-                    </div>
-                    <div class="info-item">
-                        <span>Position:</span>
-                        <span id="position">0, 0, 0</span>
+                    <div class="players-list">
+                        <h3>Players</h3>
+                        <div id="playersList"></div>
                     </div>
                 </div>
             </div>
-        </div>
+
+            <!-- Chat Tab -->
+            <div class="tab-content" id="chat">
+                <div class="chat-section">
+                    <div class="chat-messages" id="chatMessages"></div>
+                    <div class="chat-input">
+                        <input type="text" id="chatInput" placeholder="Type message...">
+                        <button onclick="dashboard.sendMessage()">Send</button>
+                    </div>
+                </div>
+            </div>
+
+
+
+            <!-- Console Tab -->
+            <div class="tab-content" id="console">
+                <div class="console-section">
+                    <div class="console-output" id="consoleOutput"></div>
+                    <div class="console-input">
+                        <input type="text" id="consoleInput" placeholder="Enter command...">
+                        <button onclick="dashboard.executeCommand()">Execute</button>
+                    </div>
+                </div>
+            </div>
+        </main>
     </div>
 
     <script src="script.js"></script>

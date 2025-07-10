@@ -20,10 +20,10 @@ public class AdviceNext implements ModInitializer {
 		EventManager.initialize();
 		CommandManager.initialize();
 
-		ConfigManager.getInstance().loadConfig();
+		ConfigManager.getInstance().loadConfig("default");
 
 		Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-			ConfigManager.getInstance().saveConfig();
+			ConfigManager.getInstance().saveConfig("default");
 		}));
 
 
@@ -33,7 +33,7 @@ public class AdviceNext implements ModInitializer {
 
 		// 注册关闭钩子
 		Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-			ConfigManager.getInstance().saveConfig();
+			ConfigManager.getInstance().saveConfig("default");
 			ScriptManager.getInstance().unloadScripts();
 		}));
 

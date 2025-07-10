@@ -70,4 +70,13 @@ public class EventManager {
             }
         }
     }
+
+    @Listener
+    public void onRender3D(Render3DEvent event){
+        for (Module module : ModuleManager.getModules()) {
+            if (module.getEnabled()) {
+                module.onRender3D(event);
+            }
+        }
+    }
 }

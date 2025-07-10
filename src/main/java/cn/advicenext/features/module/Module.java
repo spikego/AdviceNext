@@ -33,6 +33,8 @@ public class Module {
 
     public void onPacket(PacketEvent event) {}
 
+    public void onRender3D(Render3DEvent event){}
+
     public void enable() {
         this.enabled = true;
         onEnable();

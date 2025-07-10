@@ -45,6 +45,10 @@ dependencies {
 	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
 	modImplementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8"
 	
+	// Fabric Kotlin Language (JIJ)
+	modImplementation "net.fabricmc:fabric-language-kotlin:1.12.3+kotlin.2.0.21"
+	include "net.fabricmc:fabric-language-kotlin:1.12.3+kotlin.2.0.21"
+	
 	// WebSocket dependencies
 	modImplementation "org.java-websocket:Java-WebSocket:1.5.3"
 	modImplementation "com.google.code.gson:gson:2.10.1"
@@ -54,9 +58,7 @@ dependencies {
 	modImplementation "org.lwjgl:lwjgl-opengl:3.3.3"
 
 	//lua script
-	modImplementation('org.luaj:luaj-jse:3.0.1') {
-		transitive = false
-	}
+	modImplementation('org.luaj:luaj-jse:3.0.1')
 	include 'org.luaj:luaj-jse:3.0.1'
 
 	//javafx

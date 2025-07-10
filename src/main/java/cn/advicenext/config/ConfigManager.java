@@ -18,13 +18,14 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
 
 public class ConfigManager {
     private static final ConfigManager INSTANCE = new ConfigManager();
     private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
-    private final Path configDir = Paths.get(System.getProperty("user.home"), ".advicenext");
-    private final Path modulesConfig = configDir.resolve("modules.json");
-    
+    private final Path configDir = Paths.get(System.getProperty("user.home"), ".advicenext", "config");
+
     private ConfigManager() {
         // 创建配置目录
         try {
@@ -35,33 +36,35 @@ public class ConfigManager {
             e.printStackTrace();
         }
     }
-    
+
     public static ConfigManager getInstance() {
         return INSTANCE;
     }
-    
+
     /**
-     * 保存所有模块配置
+     * 保存指定名称的模块配置
      */
-    public void saveConfig() {
+    public void saveConfig(String configName) {
         try {
+            Path configPath = configDir.resolve(configName + ".json");
+
             // 创建一个JSON对象来存储所有模块配置
             JsonObject root = new JsonObject();
-            
+
             // 遍历所有模块
             for (Module module : ModuleManager.getModules()) {
                 JsonObject moduleObj = new JsonObject();
-                
+
                 // 保存模块启用状态
                 moduleObj.addProperty("enabled", module.getEnabled());
-                
+
                 // 保存模块按键绑定
                 moduleObj.addProperty("key", module.getKey());
-                
+
                 // 保存模块设置
                 if (!module.settings.isEmpty()) {
                     JsonObject settingsObj = new JsonObject();
-                    
+
                     for (AbstractSetting<?> setting : module.settings) {
                         if (setting instanceof BooleanSetting) {
                             settingsObj.addProperty(setting.getName(), ((BooleanSetting) setting).getValue());
@@ -73,58 +76,60 @@ public class ConfigManager {
                             settingsObj.addProperty(setting.getName(), ((StringSetting) setting).getValue());
                         }
                     }
-                    
+
                     moduleObj.add("settings", settingsObj);
                 }
-                
+
                 // 将模块添加到根对象
                 root.add(module.getName(), moduleObj);
             }
-            
+
             // 写入文件
-            try (Writer writer = new OutputStreamWriter(new FileOutputStream(modulesConfig.toFile()), StandardCharsets.UTF_8)) {
+            try (Writer writer = new OutputStreamWriter(new FileOutputStream(configPath.toFile()), StandardCharsets.UTF_8)) {
                 gson.toJson(root, writer);
             }
-            
+
             NotificationManager.getInstance().addNotification(
-                "Config", 
-                "Configuration saved successfully", 
-                NotificationManager.NotificationType.SUCCESS, 
-                3000
+                    "Config",
+                    "Configuration '" + configName + "' saved successfully",
+                    NotificationManager.NotificationType.SUCCESS,
+                    3000
             );
         } catch (Exception e) {
             e.printStackTrace();
             NotificationManager.getInstance().addNotification(
-                "Config", 
-                "Failed to save configuration: " + e.getMessage(), 
-                NotificationManager.NotificationType.ERROR, 
-                5000
+                    "Config",
+                    "Failed to save configuration '" + configName + "': " + e.getMessage(),
+                    NotificationManager.NotificationType.ERROR,
+                    5000
             );
         }
     }
-    
+
     /**
-     * 加载所有模块配置
+     * 加载指定名称的模块配置
      */
-    public void loadConfig() {
+    public void loadConfig(String configName) {
         try {
+            Path configPath = configDir.resolve(configName + ".json");
+
             // 如果配置文件不存在，创建默认配置
-            if (!Files.exists(modulesConfig)) {
-                saveConfig();
+            if (!Files.exists(configPath)) {
+                saveConfig(configName);
                 return;
             }
-            
+
             // 读取配置文件
-            String content = new String(Files.readAllBytes(modulesConfig), StandardCharsets.UTF_8);
+            String content = new String(Files.readAllBytes(configPath), StandardCharsets.UTF_8);
             JsonObject root = JsonParser.parseString(content).getAsJsonObject();
-            
+
             // 遍历所有模块
             for (Module module : ModuleManager.getModules()) {
                 JsonElement moduleElement = root.get(module.getName());
-                
+
                 if (moduleElement != null && moduleElement.isJsonObject()) {
                     JsonObject moduleObj = moduleElement.getAsJsonObject();
-                    
+
                     // 加载模块启用状态
                     if (moduleObj.has("enabled")) {
                         boolean enabled = moduleObj.get("enabled").getAsBoolean();
@@ -132,20 +137,20 @@ public class ConfigManager {
                             module.toggle(); // 只有当状态不同时才切换
                         }
                     }
-                    
+
                     // 加载模块按键绑定
                     if (moduleObj.has("key")) {
                         module.bindKey(moduleObj.get("key").getAsInt());
                     }
-                    
+
                     // 加载模块设置
                     if (moduleObj.has("settings") && moduleObj.get("settings").isJsonObject()) {
                         JsonObject settingsObj = moduleObj.getAsJsonObject("settings");
-                        
+
                         for (AbstractSetting<?> setting : module.settings) {
                             if (settingsObj.has(setting.getName())) {
                                 JsonElement settingElement = settingsObj.get(setting.getName());
-                                
+
                                 if (setting instanceof BooleanSetting) {
                                     ((BooleanSetting) setting).setValue(settingElement.getAsBoolean());
                                 } else if (setting instanceof NumberSetting) {
@@ -170,21 +175,35 @@ public class ConfigManager {
                     }
                 }
             }
-            
+
             NotificationManager.getInstance().addNotification(
-                "Config", 
-                "Configuration loaded successfully", 
-                NotificationManager.NotificationType.SUCCESS, 
-                3000
+                    "Config",
+                    "Configuration '" + configName + "' loaded successfully",
+                    NotificationManager.NotificationType.SUCCESS,
+                    3000
             );
         } catch (Exception e) {
             e.printStackTrace();
             NotificationManager.getInstance().addNotification(
-                "Config", 
-                "Failed to load configuration: " + e.getMessage(), 
-                NotificationManager.NotificationType.ERROR, 
-                5000
+                    "Config",
+                    "Failed to load configuration '" + configName + "': " + e.getMessage(),
+                    NotificationManager.NotificationType.ERROR,
+                    5000
             );
         }
+    }
+
+    public List<String> getAvailableConfigs() {
+        List<String> configNames = new ArrayList<>();
+        try {
+            if (Files.exists(configDir)) {
+                Files.list(configDir)
+                        .filter(path -> path.toString().endsWith(".json"))
+                        .forEach(path -> configNames.add(path.getFileName().toString().replace(".json", "")));
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return configNames;
     }
 }

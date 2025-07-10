@@ -8,7 +8,7 @@ body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     min-height: 100vh;
-    color: #fff;
+    color: #333;
 }
 
 .container {
@@ -17,278 +17,575 @@ body {
     padding: 20px;
 }
 
-.glass-panel {
+.header {
     background: rgba(255, 255, 255, 0.1);
     backdrop-filter: blur(10px);
     border-radius: 15px;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
     padding: 20px;
     margin-bottom: 20px;
-}
-
-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 30px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
-header h1 {
-    font-size: 2.5rem;
+.header h1 {
+    color: white;
+    font-size: 2rem;
     font-weight: 300;
 }
 
-.status {
+.system-info {
     display: flex;
-    align-items: center;
-    gap: 15px;
-}
-
-#connection-status {
-    padding: 8px 16px;
-    background: rgba(0, 255, 0, 0.2);
-    border-radius: 20px;
+    gap: 20px;
+    color: rgba(255, 255, 255, 0.9);
     font-size: 0.9rem;
 }
 
-button {
-    background: rgba(255, 255, 255, 0.2);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    color: white;
-    padding: 10px 20px;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.3s ease;
+.nav-tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
 }
 
-button:hover {
-    background: rgba(255, 255, 255, 0.3);
+.tab-btn {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+    padding: 12px 24px;
+    color: white;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 0.9rem;
+}
+
+.tab-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
     transform: translateY(-2px);
 }
 
-.dashboard-grid {
+.tab-btn.active {
+    background: rgba(255, 255, 255, 0.3);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.main-content {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border-radius: 15px;
+    padding: 30px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    min-height: 600px;
+}
+
+.tab-content {
+    display: none;
+    animation: fadeIn 0.3s ease;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Modules Tab */
+.modules-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 20px;
+    gap: 30px;
+    height: 100%;
 }
 
-.panel h2 {
+.module-list, .module-settings {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    padding: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.module-list h3, .module-settings h3 {
+    color: white;
     margin-bottom: 15px;
-    font-weight: 400;
-    color: #fff;
-}
-
-#modules-list {
-    max-height: 400px;
-    overflow-y: auto;
+    font-weight: 300;
 }
 
 .module-item {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 12px;
-    margin-bottom: 8px;
+    padding: 10px;
+    margin: 5px 0;
     background: rgba(255, 255, 255, 0.05);
     border-radius: 8px;
-    transition: all 0.3s ease;
-}
-
-.module-info {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.settings-btn {
-    background: rgba(255, 255, 255, 0.1);
-    border: none;
-    color: white;
-    padding: 4px 8px;
-    border-radius: 4px;
     cursor: pointer;
-    font-size: 12px;
-}
-
-.settings-modal {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.5);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 1000;
-}
-
-.modal-content {
-    width: 90%;
-    max-width: 400px;
-    max-height: 80vh;
-    overflow-y: auto;
-}
-
-.settings-list {
-    margin: 20px 0;
-}
-
-.setting-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 15px;
-}
-
-.setting-item label {
-    flex: 1;
-    margin-right: 10px;
-}
-
-.setting-item input {
-    flex: 1;
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    color: white;
-    padding: 8px;
-    border-radius: 4px;
-}
-
-.modal-buttons {
-    display: flex;
-    gap: 10px;
-    justify-content: flex-end;
-}
-
-.save-btn {
-    background: rgba(0, 255, 0, 0.3);
-}
-
-.cancel-btn {
-    background: rgba(255, 0, 0, 0.3);
+    transition: all 0.2s ease;
+    border: 1px solid transparent;
 }
 
 .module-item:hover {
     background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.module-item.selected {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.module-name {
+    color: white;
+    font-weight: 500;
 }
 
 .module-toggle {
     width: 50px;
     height: 25px;
     background: rgba(255, 255, 255, 0.2);
-    border-radius: 25px;
+    border-radius: 15px;
     position: relative;
     cursor: pointer;
     transition: all 0.3s ease;
 }
 
-.module-toggle.active {
-    background: rgba(0, 255, 0, 0.3);
+.module-toggle.enabled {
+    background: #4CAF50;
 }
 
 .module-toggle::after {
     content: '';
-    position: absolute;
     width: 21px;
     height: 21px;
     background: white;
     border-radius: 50%;
+    position: absolute;
     top: 2px;
     left: 2px;
     transition: all 0.3s ease;
 }
 
-.module-toggle.active::after {
+.module-toggle.enabled::after {
     transform: translateX(25px);
 }
 
-.console {
-    height: 300px;
+/* Settings */
+.setting-item {
+    margin: 15px 0;
+    padding: 15px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.setting-label {
+    color: white;
+    font-weight: 500;
+    margin-bottom: 8px;
+    display: block;
+}
+
+.setting-input {
+    width: 100%;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    color: white;
+    font-size: 0.9rem;
+}
+
+.setting-input::placeholder {
+    color: rgba(255, 255, 255, 0.5);
+}
+
+/* Game Control */
+.game-controls {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+}
+
+.control-section {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    padding: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.control-section h3 {
+    color: white;
+    margin-bottom: 15px;
+    font-weight: 300;
+}
+
+.movement-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    max-width: 200px;
+}
+
+.control-btn {
+    padding: 15px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    color: white;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 1.2rem;
+}
+
+.control-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: scale(1.05);
+}
+
+.control-btn:active {
+    transform: scale(0.95);
+}
+
+.action-btn {
+    padding: 12px 24px;
+    margin: 5px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    color: white;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.action-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.action-btn.danger {
+    background: rgba(244, 67, 54, 0.3);
+    border-color: rgba(244, 67, 54, 0.5);
+}
+
+.action-btn.danger:hover {
+    background: rgba(244, 67, 54, 0.5);
+}
+
+/* Players */
+.players-section {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+}
+
+.minimap, .players-list {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    padding: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.minimap h3, .players-list h3 {
+    color: white;
+    margin-bottom: 15px;
+    font-weight: 300;
+}
+
+#minimap {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.player-item {
+    padding: 10px;
+    margin: 5px 0;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Chat */
+.chat-section {
+    height: 500px;
+    display: flex;
+    flex-direction: column;
+}
+
+.chat-messages {
+    flex: 1;
     background: rgba(0, 0, 0, 0.3);
     border-radius: 8px;
     padding: 15px;
     overflow-y: auto;
-    font-family: 'Courier New', monospace;
+    margin-bottom: 15px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.chat-input {
+    display: flex;
+    gap: 10px;
+}
+
+.chat-input input {
+    flex: 1;
+    padding: 12px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    color: white;
+}
+
+.chat-input button {
+    padding: 12px 24px;
+    background: rgba(76, 175, 80, 0.3);
+    border: 1px solid rgba(76, 175, 80, 0.5);
+    border-radius: 8px;
+    color: white;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.chat-input button:hover {
+    background: rgba(76, 175, 80, 0.5);
+}
+
+.chat-message {
+    margin: 5px 0;
+    padding: 8px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 6px;
+    color: white;
     font-size: 0.9rem;
-    line-height: 1.4;
+}
+
+/* Console */
+.console-section {
+    height: 500px;
+    display: flex;
+    flex-direction: column;
+}
+
+.console-output {
+    flex: 1;
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 8px;
+    padding: 15px;
+    overflow-y: auto;
+    margin-bottom: 15px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.85rem;
+    color: #00ff00;
+    border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .console-input {
     display: flex;
     gap: 10px;
-    margin-top: 10px;
 }
 
 .console-input input {
     flex: 1;
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    color: white;
-    padding: 10px;
-    border-radius: 8px;
-}
-
-.console-input input::placeholder {
-    color: rgba(255, 255, 255, 0.5);
-}
-
-#game-canvas {
-    width: 100%;
-    max-width: 400px;
+    padding: 12px;
     background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.2);
     border-radius: 8px;
-    display: block;
-    margin: 0 auto 15px;
+    color: #00ff00;
+    font-family: 'Courier New', monospace;
 }
 
-.stream-controls {
-    display: flex;
-    gap: 10px;
-    justify-content: center;
+.console-input button {
+    padding: 12px 24px;
+    background: rgba(33, 150, 243, 0.3);
+    border: 1px solid rgba(33, 150, 243, 0.5);
+    border-radius: 8px;
+    color: white;
+    cursor: pointer;
+    transition: all 0.2s ease;
 }
 
-.info-item {
-    display: flex;
-    justify-content: space-between;
-    padding: 8px 0;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+.console-input button:hover {
+    background: rgba(33, 150, 243, 0.5);
 }
 
-.info-item:last-child {
-    border-bottom: none;
+.console-line {
+    margin: 2px 0;
+    word-wrap: break-word;
 }
 
-.log-entry {
-    margin-bottom: 5px;
-    padding: 5px;
+
+
+/* Scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
     border-radius: 4px;
 }
 
-.log-entry.error {
-    background: rgba(255, 0, 0, 0.2);
+::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 4px;
 }
 
-.log-entry.warning {
-    background: rgba(255, 255, 0, 0.2);
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.5);
 }
 
-.log-entry.info {
-    background: rgba(0, 255, 255, 0.2);
-}
-
+/* Mobile Responsive */
 @media (max-width: 768px) {
-    .dashboard-grid {
-        grid-template-columns: 1fr;
+    .container {
+        padding: 10px;
     }
     
-    header {
+    .header {
         flex-direction: column;
         gap: 15px;
+        text-align: center;
     }
     
-    header h1 {
-        font-size: 2rem;
+    .header h1 {
+        font-size: 1.5rem;
+    }
+    
+    .system-info {
+        flex-direction: column;
+        gap: 10px;
+        font-size: 0.8rem;
+    }
+    
+    .nav-tabs {
+        flex-wrap: wrap;
+        gap: 5px;
+    }
+    
+    .tab-btn {
+        padding: 8px 16px;
+        font-size: 0.8rem;
+        flex: 1;
+        min-width: 80px;
+    }
+    
+    .main-content {
+        padding: 15px;
+    }
+    
+    .modules-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+    
+    .game-controls {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+    
+    .movement-grid {
+        max-width: 150px;
+        margin: 0 auto;
+    }
+    
+    .control-btn {
+        padding: 12px;
+        font-size: 1rem;
+    }
+    
+    .players-section {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+    
+    #minimap {
+        width: 100%;
+        height: 200px;
+    }
+    
+    .chat-section {
+        height: 400px;
+    }
+    
+    .console-section {
+        height: 400px;
+    }
+    
+
+    
+    .setting-input {
+        font-size: 16px;
+    }
+    
+    .chat-input input,
+    .console-input input {
+        font-size: 16px;
+    }
+}
+
+@media (max-width: 480px) {
+    .container {
+        padding: 5px;
+    }
+    
+    .header {
+        padding: 15px;
+    }
+    
+    .main-content {
+        padding: 10px;
+    }
+    
+    .tab-btn {
+        padding: 6px 12px;
+        font-size: 0.7rem;
+    }
+    
+    .movement-grid {
+        max-width: 120px;
+        gap: 5px;
+    }
+    
+    .control-btn {
+        padding: 8px;
+        font-size: 0.9rem;
+    }
+    
+    .action-btn {
+        padding: 8px 16px;
+        font-size: 0.8rem;
+    }
+}
+
+@media (hover: none) and (pointer: coarse) {
+    .module-toggle {
+        width: 60px;
+        height: 30px;
+    }
+    
+    .module-toggle::after {
+        width: 26px;
+        height: 26px;
+    }
+    
+    .module-toggle.enabled::after {
+        transform: translateX(30px);
+    }
+    
+    .control-btn,
+    .action-btn,
+    .tab-btn {
+        min-height: 44px;
+    }
+    
+    .module-item {
+        padding: 15px 10px;
+        min-height: 50px;
+    }
+    
+    .setting-item {
+        padding: 20px 15px;
     }
 }

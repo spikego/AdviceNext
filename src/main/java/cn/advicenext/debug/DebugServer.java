@@ -4,10 +4,18 @@ import cn.advicenext.config.ConfigManager;
 import cn.advicenext.features.module.Module;
 import cn.advicenext.features.module.ModuleManager;
 import cn.advicenext.features.value.AbstractSetting;
+import cn.advicenext.features.value.BooleanSetting;
+import cn.advicenext.features.value.ModeSetting;
+import cn.advicenext.features.value.StringSetting;
+import cn.advicenext.features.value.slider.DoubleSetting;
+import cn.advicenext.features.value.slider.IntSetting;
+import cn.advicenext.features.value.slider.NumberSetting;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.util.ScreenshotRecorder;
+import net.minecraft.entity.player.PlayerEntity;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -21,7 +29,9 @@ public class DebugServer {
     private HttpServer server;
     private final int port = 8080;
     private final List<String> logMessages = new CopyOnWriteArrayList<>();
+    private final List<String> chatMessages = new CopyOnWriteArrayList<>();
     private boolean isRunning = false;
+    private boolean[] movementStates = new boolean[6];
 
     private DebugServer() {}
 
@@ -39,6 +49,16 @@ public class DebugServer {
             server.createContext("/api/settings", new SettingsApiHandler());
             server.createContext("/api/logs", new LogsApiHandler());
             server.createContext("/api/system", new SystemInfoHandler());
+            server.createContext("/api/players", new PlayersApiHandler());
+            server.createContext("/api/chat", new ChatApiHandler());
+            server.createContext("/api/movement", new MovementApiHandler());
+            server.createContext("/api/screenshot", new ScreenshotApiHandler());
+            server.createContext("/api/disconnect", new DisconnectApiHandler());
+            server.createContext("/api/exit", new ExitApiHandler());
+            server.createContext("/api/command", new CommandApiHandler());
+            server.createContext("/api/configs", new ConfigsApiHandler());
+            server.createContext("/api/config/save", new SaveConfigApiHandler());
+            server.createContext("/api/config/load", new LoadConfigApiHandler());
             server.setExecutor(null);
             server.start();
 
@@ -74,6 +94,25 @@ public class DebugServer {
 
     public boolean isRunning() {
         return isRunning;
+    }
+    
+    public void addChatMessage(String message) {
+        chatMessages.add(message);
+        if (chatMessages.size() > 100) {
+            chatMessages.remove(0);
+        }
+    }
+    
+    public void tickMovement() {
+        MinecraftClient mc = MinecraftClient.getInstance();
+        if (mc.player == null) return;
+        
+        if (movementStates[0]) mc.options.forwardKey.setPressed(true);
+        if (movementStates[1]) mc.options.backKey.setPressed(true);
+        if (movementStates[2]) mc.options.leftKey.setPressed(true);
+        if (movementStates[3]) mc.options.rightKey.setPressed(true);
+        if (movementStates[4]) mc.options.jumpKey.setPressed(true);
+        if (movementStates[5]) mc.options.sneakKey.setPressed(true);
     }
 
     private class DashboardHandler implements HttpHandler {
@@ -259,8 +298,26 @@ public class DebugServer {
                     if (!first) json.append(",");
                     json.append("{");
                     json.append("\"name\":\"").append(setting.getName()).append("\",");
-                    json.append("\"type\":\"").append(setting.getClass().getSimpleName()).append("\",");
-                    json.append("\"value\":\"").append(setting.toString()).append("\"");
+                    
+                    String type = "String";
+                    String value = "";
+                    
+                    if (setting instanceof BooleanSetting) {
+                        type = "Boolean";
+                        value = String.valueOf(((BooleanSetting) setting).getValue());
+                    } else if (setting instanceof ModeSetting) {
+                        type = "Mode";
+                        value = ((ModeSetting) setting).getValue();
+                    } else if (setting instanceof NumberSetting) {
+                        type = "Number";
+                        value = ((NumberSetting<?>) setting).getValue().toString();
+                    } else if (setting instanceof StringSetting) {
+                        type = "String";
+                        value = ((StringSetting) setting).getValue();
+                    }
+                    
+                    json.append("\"type\":\"").append(type).append("\",");
+                    json.append("\"value\":\"").append(value).append("\"");
                     json.append("}");
                     first = false;
                 }
@@ -290,7 +347,24 @@ public class DebugServer {
                     if (module.getName().equalsIgnoreCase(moduleName)) {
                         for (AbstractSetting<?> setting : module.settings) {
                             if (setting.getName().equalsIgnoreCase(settingName)) {
-                                log("Updated setting: " + moduleName + "." + settingName + " = " + value);
+                                try {
+                                    if (setting instanceof BooleanSetting) {
+                                        ((BooleanSetting) setting).setValue(Boolean.parseBoolean(value));
+                                    } else if (setting instanceof ModeSetting) {
+                                        ((ModeSetting) setting).setValue(value);
+                                    } else if (setting instanceof NumberSetting) {
+                                        if (setting instanceof IntSetting) {
+                                            ((IntSetting) setting).setValue(Integer.parseInt(value));
+                                        } else if (setting instanceof DoubleSetting) {
+                                            ((DoubleSetting) setting).setValue(Double.parseDouble(value));
+                                        }
+                                    } else if (setting instanceof StringSetting) {
+                                        ((StringSetting) setting).setValue(value);
+                                    }
+                                    log("Updated setting: " + moduleName + "." + settingName + " = " + value);
+                                } catch (Exception e) {
+                                    log("Failed to update setting: " + e.getMessage());
+                                }
                                 break;
                             }
                         }
@@ -312,5 +386,214 @@ public class DebugServer {
                 break;
             }
         }
+    }
+    
+    private class PlayersApiHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            MinecraftClient mc = MinecraftClient.getInstance();
+            StringBuilder json = new StringBuilder();
+            json.append("{\"players\":[");
+            
+            boolean first = true;
+            if (mc.world != null && mc.player != null) {
+                json.append("{");
+                json.append("\"name\":\"You\",");
+                json.append("\"health\":").append((int)mc.player.getHealth()).append(",");
+                json.append("\"distance\":0,");
+                json.append("\"x\":").append((int)mc.player.getX()).append(",");
+                json.append("\"y\":").append((int)mc.player.getY()).append(",");
+                json.append("\"z\":").append((int)mc.player.getZ());
+                json.append("}");
+                first = false;
+                
+                for (PlayerEntity player : mc.world.getPlayers()) {
+                    if (player != mc.player) {
+                        if (!first) json.append(",");
+                        json.append("{");
+                        json.append("\"name\":\"").append(player.getName().getString()).append("\",");
+                        json.append("\"health\":").append((int)player.getHealth()).append(",");
+                        json.append("\"distance\":").append((int)mc.player.distanceTo(player)).append(",");
+                        json.append("\"x\":").append((int)player.getX()).append(",");
+                        json.append("\"y\":").append((int)player.getY()).append(",");
+                        json.append("\"z\":").append((int)player.getZ());
+                        json.append("}");
+                        first = false;
+                    }
+                }
+            }
+            
+            json.append("]}");
+            sendJsonResponse(exchange, json.toString());
+        }
+    }
+    
+    private class ChatApiHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if ("GET".equals(exchange.getRequestMethod())) {
+                StringBuilder json = new StringBuilder();
+                json.append("{\"messages\":[");
+                boolean first = true;
+                for (String msg : chatMessages) {
+                    if (!first) json.append(",");
+                    json.append("{");
+                    json.append("\"text\":\"").append(msg.replace("\"", "\\\"")).append("\"");
+                    json.append("}");
+                    first = false;
+                }
+                json.append("]}");
+                sendJsonResponse(exchange, json.toString());
+            } else if ("POST".equals(exchange.getRequestMethod())) {
+                String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+                String message = extractJsonValue(body, "message");
+                if (!message.isEmpty()) {
+                    MinecraftClient mc = MinecraftClient.getInstance();
+                    if (mc.player != null) {
+                        mc.player.networkHandler.sendChatMessage(message);
+                    }
+                }
+                sendJsonResponse(exchange, "{\"success\":true}");
+            }
+        }
+    }
+    
+    private class MovementApiHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if ("POST".equals(exchange.getRequestMethod())) {
+                String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+                String action = extractJsonValue(body, "action");
+                String state = extractJsonValue(body, "state");
+                
+                boolean pressed = "start".equals(state);
+                
+                switch (action) {
+                    case "forward": movementStates[0] = pressed; break;
+                    case "back": movementStates[1] = pressed; break;
+                    case "left": movementStates[2] = pressed; break;
+                    case "right": movementStates[3] = pressed; break;
+                    case "jump": movementStates[4] = pressed; break;
+                    case "sneak": movementStates[5] = pressed; break;
+                }
+                
+                sendJsonResponse(exchange, "{\"success\":true}");
+            }
+        }
+    }
+    
+    private class ScreenshotApiHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if ("POST".equals(exchange.getRequestMethod())) {
+                MinecraftClient mc = MinecraftClient.getInstance();
+                try {
+                    ScreenshotRecorder.saveScreenshot(mc.runDirectory, mc.getFramebuffer(),
+                        (text) -> log("Screenshot: " + text.getString()));
+                    sendJsonResponse(exchange, "{\"success\":true}");
+                } catch (Exception e) {
+                    sendJsonResponse(exchange, "{\"success\":false}");
+                }
+            }
+        }
+    }
+    
+    private class DisconnectApiHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if ("POST".equals(exchange.getRequestMethod())) {
+                MinecraftClient mc = MinecraftClient.getInstance();
+                if (mc.world != null) {
+                    mc.world.disconnect();
+                }
+                sendJsonResponse(exchange, "{\"success\":true}");
+            }
+        }
+    }
+    
+    private class ExitApiHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if ("POST".equals(exchange.getRequestMethod())) {
+                sendJsonResponse(exchange, "{\"success\":true}");
+                new Thread(() -> {
+                    try {
+                        Thread.sleep(1000);
+                        MinecraftClient.getInstance().scheduleStop();
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                }).start();
+            }
+        }
+    }
+    
+    private class CommandApiHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if ("POST".equals(exchange.getRequestMethod())) {
+                String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+                String command = extractJsonValue(body, "command");
+                if (!command.isEmpty()) {
+                    log("Executing command: " + command);
+                }
+                sendJsonResponse(exchange, "{\"success\":true}");
+            }
+        }
+    }
+    
+    private class ConfigsApiHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            StringBuilder json = new StringBuilder();
+            json.append("{\"configs\":[");
+            json.append("{\"name\":\"Default\"}");
+            json.append("]}");
+            sendJsonResponse(exchange, json.toString());
+        }
+    }
+    
+    private class SaveConfigApiHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if ("POST".equals(exchange.getRequestMethod())) {
+                String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+                String name = extractJsonValue(body, "name");
+                if (!name.isEmpty()) {
+                    ConfigManager.getInstance().saveConfig(name);
+                    log("Config saved: " + name);
+                }
+                sendJsonResponse(exchange, "{\"success\":true}");
+            }
+        }
+    }
+    
+    private class LoadConfigApiHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if ("POST".equals(exchange.getRequestMethod())) {
+                String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+                String name = extractJsonValue(body, "name");
+                if (!name.isEmpty()) {
+                    ConfigManager.getInstance().loadConfig(name);
+                    log("Config loaded: " + name);
+                }
+                sendJsonResponse(exchange, "{\"success\":true}");
+            }
+        }
+    }
+    
+    private String extractJsonValue(String json, String key) {
+        try {
+            java.util.regex.Pattern pattern = java.util.regex.Pattern.compile(
+                "\"" + key + "\"\\s*:\\s*\"([^\"]+)\"");
+            java.util.regex.Matcher matcher = pattern.matcher(json);
+            if (matcher.find()) {
+                return matcher.group(1);
+            }
+        } catch (Exception e) {
+            // ignore
+        }
+        return "";
     }
 }
