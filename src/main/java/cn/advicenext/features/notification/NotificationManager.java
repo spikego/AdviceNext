@@ -2,6 +2,7 @@ package cn.advicenext.features.notification;
 
 import cn.advicenext.event.impl.Render2DEvent;
 import cn.advicenext.gui.colors.Colors;
+import cn.advicenext.render.shader.ShaderEffects;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 
@@ -20,6 +21,10 @@ public class NotificationManager {
     private static final int NOTIFICATION_WIDTH = 200;
     private static final int NOTIFICATION_HEIGHT = 30;
     private static final int NOTIFICATION_SPACING = 5;
+    
+    // 着色器效果参数
+    private static final float BLUR_RADIUS = 10.0f;
+    private static final float BLOOM_INTENSITY = 0.5f;
     
     private NotificationManager() {}
     
@@ -65,8 +70,18 @@ public class NotificationManager {
             float animation = notification.getAnimation();
             int x = (int)(screenWidth - NOTIFICATION_WIDTH * animation);
             
-            // 绘制通知背景
-            Color bgColor = new Color(25, 25, 25, (int)(220 * animation));
+            // 应用模糊和泛光效果
+            float effectIntensity = animation * 0.8f; // 根据动画进度调整效果强度
+            ShaderEffects.renderBlurredAndBloomedBackground(
+                context, 
+                x, y, 
+                NOTIFICATION_WIDTH, NOTIFICATION_HEIGHT, 
+                BLUR_RADIUS * effectIntensity, 
+                BLOOM_INTENSITY * effectIntensity
+            );
+            
+            // 绘制通知背景（半透明）
+            Color bgColor = new Color(25, 25, 25, (int)(200 * animation));
             context.fill(x, y, x + NOTIFICATION_WIDTH, y + NOTIFICATION_HEIGHT, bgColor.getRGB());
             
             // 绘制通知类型颜色条

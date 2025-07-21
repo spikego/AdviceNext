@@ -1,5 +1,6 @@
 package cn.advicenext.script.api;
 
+import cn.advicenext.event.impl.TickEvent;
 import cn.advicenext.features.module.Category;
 import cn.advicenext.features.module.Module;
 
@@ -12,6 +13,7 @@ public abstract class ScriptModule extends Module {
     // 脚本模块的基础实现
     public abstract void onScriptEnable();
     public abstract void onScriptDisable();
+    public abstract void onScriptTick();
     
     @Override
     public void onEnable() {
@@ -22,4 +24,7 @@ public abstract class ScriptModule extends Module {
     public void onDisable() {
         onScriptDisable();
     }
+
+    @Override
+    public void onTick(TickEvent event){onScriptTick();}
 }

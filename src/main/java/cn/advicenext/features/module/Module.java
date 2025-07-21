@@ -4,6 +4,8 @@ import cn.advicenext.event.impl.*;
 import cn.advicenext.features.notification.NotificationManager;
 import cn.advicenext.features.value.AbstractSetting;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.sound.SoundEvent;
+import net.minecraft.sound.SoundEvents;
 
 import java.util.concurrent.CopyOnWriteArrayList;
 
@@ -63,6 +65,11 @@ public class Module {
         } else {
             enable();
         }
+    }
+
+    private void playSound() {
+        SoundEvent soundEvent = SoundEvents.ENTITY_EXPERIENCE_ORB_PICKUP;
+        mc.player.playSound(soundEvent, 1.0f, 1.0f);
     }
 
     public void bindKey(int key) {

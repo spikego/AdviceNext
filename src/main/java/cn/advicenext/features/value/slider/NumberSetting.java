@@ -37,4 +37,18 @@ public class NumberSetting<N extends Number> extends AbstractSetting<N> {
     public void setStep(N step) {
         this.step = step;
     }
+    
+    /**
+     * Sets the value from a double, handling type conversion
+     * @param value The double value to set
+     */
+    public void setValueFromDouble(double value) {
+        if (this.value instanceof Integer) {
+            setValue((N) Integer.valueOf((int) Math.round(value)));
+        } else if (this.value instanceof Float) {
+            setValue((N) Float.valueOf((float) value));
+        } else if (this.value instanceof Double) {
+            setValue((N) Double.valueOf(value));
+        }
+    }
 }

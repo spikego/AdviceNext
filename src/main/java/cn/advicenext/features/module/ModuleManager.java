@@ -6,13 +6,13 @@ import java.util.concurrent.CopyOnWriteArrayList;
 
 import cn.advicenext.AdviceNext;
 import cn.advicenext.features.module.impl.combat.*;
-import cn.advicenext.features.module.impl.exploit.AntiAim;
 import cn.advicenext.features.module.impl.movement.*;
 import cn.advicenext.features.module.impl.render.*;
 import cn.advicenext.features.module.impl.misc.*;
 import cn.advicenext.features.module.impl.world.*;
 import cn.advicenext.features.module.impl.client.*;
 import cn.advicenext.features.module.impl.player.*;
+import cn.advicenext.features.module.impl.exploit.*;
 import cn.advicenext.features.value.AbstractSetting;
 
 public final class ModuleManager {
@@ -39,6 +39,12 @@ public final class ModuleManager {
         addModule(new Rotation());
         addModule(new AntiAim());
         addModule(new AFKGame());
+        addModule(new Clutch());
+        addModule(new Nofall());
+        addModule(new Velocity());
+        addModule(new AimAssist());
+        addModule(new LegitScaffold());
+        addModule(new ShaderEffects());
     }
 
     private static void addModule(Module module) {

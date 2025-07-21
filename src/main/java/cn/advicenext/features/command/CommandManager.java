@@ -8,9 +8,11 @@ import cn.advicenext.features.command.impl.*;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.text.Text;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.stream.Collectors;
 
 public class CommandManager {
     public static final String commandPrefix = ".";
@@ -48,6 +50,68 @@ public class CommandManager {
         } catch (Exception e) {
             addMessage("§cIncorrect usage. Correct usage: " + commandPrefix + command.getCommand() + " " + String.join(" ", command.getUsage()));
         }
+    }
+
+    /**
+     * 获取命令补全建议
+     * @param input 当前输入的命令
+     * @return 补全建议列表
+     */
+    public static List<String> getCompletions(String input) {
+        List<String> completions = new ArrayList<>();
+        
+        // 如果不是命令前缀开头，不提供补全
+        if (!input.startsWith(commandPrefix)) {
+            return completions;
+        }
+        
+        String withoutPrefix = input.substring(commandPrefix.length());
+        String[] args = withoutPrefix.split(" ");
+        
+        // 命令名称补全
+        if (args.length == 1) {
+            String partial = args[0].toLowerCase();
+            
+            // 查找匹配的命令
+            for (Command command : commands) {
+                if (command.getCommand().toLowerCase().startsWith(partial)) {
+                    completions.add(commandPrefix + command.getCommand());
+                }
+            }
+        } 
+        // 命令参数补全
+        else if (args.length > 1) {
+            String commandName = args[0].toLowerCase();
+            Command command = commands.stream()
+                    .filter(cmd -> cmd.getCommand().toLowerCase().equals(commandName))
+                    .findFirst()
+                    .orElse(null);
+            
+            if (command != null && command instanceof TabCompleter) {
+                // 获取当前正在输入的参数
+                String currentArg = args[args.length - 1].toLowerCase();
+                
+                // 获取命令特定的补全
+                String[] previousArgs = new String[args.length - 2];
+                System.arraycopy(args, 1, previousArgs, 0, previousArgs.length);
+                
+                List<String> argCompletions = ((TabCompleter) command).getCompletions(previousArgs, currentArg);
+                
+                // 构建完整的命令字符串
+                StringBuilder baseCommand = new StringBuilder(commandPrefix + commandName);
+                for (int i = 1; i < args.length - 1; i++) {
+                    baseCommand.append(" ").append(args[i]);
+                }
+                baseCommand.append(" ");
+                
+                // 添加到补全列表
+                for (String completion : argCompletions) {
+                    completions.add(baseCommand.toString() + completion);
+                }
+            }
+        }
+        
+        return completions;
     }
 
     public static void addMessage(String message) {

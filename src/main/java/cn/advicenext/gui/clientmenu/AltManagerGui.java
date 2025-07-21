@@ -33,6 +33,11 @@ public class AltManagerGui extends Screen {
     private String status = "";
     private boolean isLoading = false;
     
+    // 双击登录相关变量
+    private int lastClickedAccount = -1;
+    private long lastClickTime = 0;
+    private static final long DOUBLE_CLICK_TIME = 500; // 双击时间间隔（毫秒）
+    
     // Rise style colors
     private final int backgroundColor = 0xFF1E1E1E;
     private final int panelColor = 0xFF2D2D30;
@@ -76,6 +81,9 @@ public class AltManagerGui extends Screen {
             context.drawCenteredTextWithShadow(textRenderer, status, width / 2, height - 15, 
                 status.contains("Success") ? 0x00FF00 : 0xFF0000);
         }
+        
+        // 添加双击提示
+        context.drawTextWithShadow(textRenderer, "Double-click to login", 30, height - 15, subTextColor);
         
         super.render(context, mouseX, mouseY, delta);
     }
@@ -166,8 +174,20 @@ public class AltManagerGui extends Screen {
         if (mouseX >= panelX && mouseX <= panelX + panelWidth && mouseY >= panelY && mouseY <= panelY + listHeight) {
             int itemHeight = 30;
             int clickedIndex = (int) ((mouseY - panelY) / itemHeight) + scrollOffset;
+            
             if (clickedIndex >= 0 && clickedIndex < accountList.size()) {
+                // 检测双击
+                long currentTime = System.currentTimeMillis();
+                if (clickedIndex == lastClickedAccount && currentTime - lastClickTime < DOUBLE_CLICK_TIME) {
+                    // 双击登录
+                    loginWithAccount(clickedIndex);
+                    return true;
+                }
+                
+                // 单击选择
                 selectedAccount = clickedIndex;
+                lastClickedAccount = clickedIndex;
+                lastClickTime = currentTime;
             }
             return true;
         }
@@ -192,6 +212,63 @@ public class AltManagerGui extends Screen {
         }
         
         return super.mouseClicked(mouseX, mouseY, button);
+    }
+    
+    // 根据账户类型登录
+    private void loginWithAccount(int index) {
+        if (index < 0 || index >= accountList.size() || isLoading) return;
+        
+        String account = accountList.get(index);
+        if (account.contains("@")) {
+            // Microsoft账户，需要重新登录
+            status = "Microsoft accounts require re-login";
+            loginUsingMicrosoft();
+        } else {
+            // 离线账户，直接登录
+            loginWithOfflineAccount(account);
+        }
+    }
+    
+    // 离线账户登录
+    private void loginWithOfflineAccount(String username) {
+        if (isLoading) return;
+        isLoading = true;
+        status = "Logging in...";
+        
+        try {
+            CrackedAccount offlineAccount = new CrackedAccount(username, false);
+            var loginResult = offlineAccount.login();
+            var session = loginResult.getFirst();
+            
+            Session mcSession = new Session(
+                session.getUsername(),
+                session.getUuid(),
+                session.getToken(),
+                Optional.empty(),
+                Optional.empty(),
+                Session.AccountType.LEGACY
+            );
+            
+            java.lang.reflect.Field sessionField = MinecraftClient.class.getDeclaredField("session");
+            sessionField.setAccessible(true);
+            sessionField.set(MinecraftClient.getInstance(), mcSession);
+            
+            status = "Success: Logged in as " + username;
+            isLoading = false;
+            
+            new Thread(() -> {
+                try {
+                    Thread.sleep(1000);
+                    MinecraftClient.getInstance().execute(() -> {
+                        if (client != null) client.setScreen(new MainMenuScreen());
+                    });
+                } catch (InterruptedException ignored) {}
+            }).start();
+            
+        } catch (Exception e) {
+            status = "Login failed: " + e.getMessage();
+            isLoading = false;
+        }
     }
     
     @Override

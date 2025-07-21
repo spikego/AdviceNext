@@ -1,8 +1,8 @@
 package cn.advicenext.render.shader;
 
-
 import com.mojang.blaze3d.opengl.GlConst;
 import com.mojang.blaze3d.opengl.GlStateManager;
+import net.minecraft.client.render.GameRenderer;
 
 import java.io.Closeable;
 
