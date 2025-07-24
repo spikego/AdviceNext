@@ -4,8 +4,6 @@ import cn.advicenext.config.ConfigManager;
 import cn.advicenext.features.command.CommandManager;
 import cn.advicenext.features.module.ModuleManager;
 import cn.advicenext.event.EventManager;
-import cn.advicenext.render.shader.ShaderEffects;
-import cn.advicenext.render.shader.ShaderManager;
 import cn.advicenext.script.ScriptManager;
 import net.fabricmc.api.ModInitializer;
 import org.slf4j.Logger;

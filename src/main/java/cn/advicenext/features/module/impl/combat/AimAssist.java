@@ -5,7 +5,7 @@ import cn.advicenext.features.module.Category;
 import cn.advicenext.features.module.Module;
 import cn.advicenext.features.value.BooleanSetting;
 import cn.advicenext.features.value.slider.DoubleSetting;
-import cn.advicenext.utility.minecraft.client.RotateUtils;
+import cn.advicenext.utility.minecraft.player.RotateUtils;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.util.math.Vec3d;

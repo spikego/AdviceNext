@@ -1,4 +1,4 @@
-package cn.advicenext.utility.minecraft.client;
+package cn.advicenext.utility.minecraft.player;
 
 import net.minecraft.entity.Entity;
 import net.minecraft.util.math.Vec3d;

@@ -6,8 +6,7 @@ import cn.advicenext.features.module.Category;
 import cn.advicenext.features.value.BooleanSetting;
 import cn.advicenext.features.value.ModeSetting;
 import cn.advicenext.features.value.slider.IntSetting;
-import cn.advicenext.utility.minecraft.client.RotateUtils;
-import cn.advicenext.utility.minecraft.client.RotateUtils.Rotation;
+import cn.advicenext.utility.minecraft.player.RotateUtils;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
@@ -165,7 +164,7 @@ public class Clutch extends Module {
         
         // 应用旋转 - 使用RotateUtils.setSilentRotation方法
         if (SilentRotation.getValue()) {
-            Rotation rotation = calculateRotation(neighborPos, direction);
+            RotateUtils.Rotation rotation = calculateRotation(neighborPos, direction);
             RotateUtils.setSilentRotation(rotation, movementFix.getValue());
         }
         
@@ -311,7 +310,7 @@ public class Clutch extends Module {
                !block.equals(Blocks.SCAFFOLDING);
     }
     
-    private Rotation calculateRotation(BlockPos pos, Direction direction) {
+    private RotateUtils.Rotation calculateRotation(BlockPos pos, Direction direction) {
         // 计算目标位置
         Vec3d eyePos = mc.player.getEyePos();
         Vec3d targetPos = new Vec3d(

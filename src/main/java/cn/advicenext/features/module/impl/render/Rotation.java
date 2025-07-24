@@ -2,7 +2,7 @@ package cn.advicenext.features.module.impl.render;
 
 import cn.advicenext.features.module.Category;
 import cn.advicenext.features.module.Module;
-import cn.advicenext.utility.minecraft.client.RotateUtils;
+import cn.advicenext.utility.minecraft.player.RotateUtils;
 
 public class Rotation extends Module {
 

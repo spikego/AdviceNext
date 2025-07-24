@@ -6,8 +6,7 @@ import cn.advicenext.features.module.Module;
 import cn.advicenext.features.value.BooleanSetting;
 import cn.advicenext.features.value.slider.DoubleSetting;
 import cn.advicenext.features.value.slider.IntSetting;
-import cn.advicenext.utility.minecraft.client.RotateUtils;
-import cn.advicenext.utility.minecraft.client.RotateUtils.Rotation;
+import cn.advicenext.utility.minecraft.player.RotateUtils;
 import net.minecraft.block.BlockState;
 import net.minecraft.item.BlockItem;
 import net.minecraft.util.Hand;
@@ -199,14 +198,14 @@ public class LegitScaffold extends Module {
         Vec3d eyePos = mc.player.getEyePos();
         
         // 计算旋转
-        Rotation rotation = RotateUtils.getRotationToPos(targetVec, eyePos);
+        RotateUtils.Rotation rotation = RotateUtils.getRotationToPos(targetVec, eyePos);
         
         // 应用旋转
         if (rotationDelay.getValue() > 0) {
             // 使用平滑旋转
-            Rotation currentRot = new Rotation(mc.player.getYaw(), mc.player.getPitch());
+            RotateUtils.Rotation currentRot = new RotateUtils.Rotation(mc.player.getYaw(), mc.player.getPitch());
             float speed = (float)(1.0 / (rotationDelay.getValue() * 20)); // 转换为每tick的速度
-            Rotation smoothRot = RotateUtils.smoothRotation(currentRot, rotation, speed);
+            RotateUtils.Rotation smoothRot = RotateUtils.smoothRotation(currentRot, rotation, speed);
             
             // 应用旋转
             RotateUtils.setSilentRotation(smoothRot, false);
