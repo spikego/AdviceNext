@@ -10,6 +10,11 @@ public class ModeSetting extends AbstractSetting<String> {
         this.modes = modes;
     }
 
+    public ModeSetting(String name, String description, String value, java.util.List<String> modes, java.util.function.Supplier<Boolean> visible) {
+        super(name, description, value, visible);
+        this.modes = modes;
+    }
+
     public List<String> getModes() {
         return modes;
     }
@@ -25,5 +30,9 @@ public class ModeSetting extends AbstractSetting<String> {
         int index = modes.indexOf(getValue());
         index = (index + 1) % modes.size();
         setValue(modes.get(index));
+    }
+
+    public boolean is(String mode) {
+        return getValue().equals(mode);
     }
 }

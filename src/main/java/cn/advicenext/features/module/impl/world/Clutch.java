@@ -6,7 +6,8 @@ import cn.advicenext.features.module.Category;
 import cn.advicenext.features.value.BooleanSetting;
 import cn.advicenext.features.value.ModeSetting;
 import cn.advicenext.features.value.slider.IntSetting;
-import cn.advicenext.utility.minecraft.player.RotateUtils;
+import cn.advicenext.utility.minecraft.movement.MovementUtils;
+import cn.advicenext.utility.minecraft.player.RotationUtils;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
@@ -53,7 +54,7 @@ public class Clutch extends Module {
         lastPlaceTime = 0;
         originalSlot = -1;
         lastPlacedPos = null;
-        RotateUtils.resetSilentRotation();
+        RotationUtils.resetSilentRotation();
     }
     
     @Override
@@ -67,7 +68,7 @@ public class Clutch extends Module {
         isFalling = false;
         blocksPlaced = 0;
         lastPlacedPos = null;
-        RotateUtils.resetSilentRotation();
+        RotationUtils.resetSilentRotation();
     }
     
     @Override
@@ -128,7 +129,7 @@ public class Clutch extends Module {
             originalSlot = -1;
         }
         
-        RotateUtils.resetSilentRotation();
+        RotationUtils.resetSilentRotation();
     }
     
     private void tryPlaceBlock() {
@@ -164,8 +165,10 @@ public class Clutch extends Module {
         
         // 应用旋转 - 使用RotateUtils.setSilentRotation方法
         if (SilentRotation.getValue()) {
-            RotateUtils.Rotation rotation = calculateRotation(neighborPos, direction);
-            RotateUtils.setSilentRotation(rotation, movementFix.getValue());
+            RotationUtils.Rotation rotation = calculateRotation(neighborPos, direction);
+            MovementUtils.MovementCorrection correction = movementFix.getValue() ?
+                    MovementUtils.MovementCorrection.SILENT : MovementUtils.MovementCorrection.OFF;
+            RotationUtils.setSilentRotation(rotation, correction);
         }
         
         // 应用移动修复 - 只有在启用movementFix时才考虑移动合法性
@@ -310,7 +313,7 @@ public class Clutch extends Module {
                !block.equals(Blocks.SCAFFOLDING);
     }
     
-    private RotateUtils.Rotation calculateRotation(BlockPos pos, Direction direction) {
+    private RotationUtils.Rotation calculateRotation(BlockPos pos, Direction direction) {
         // 计算目标位置
         Vec3d eyePos = mc.player.getEyePos();
         Vec3d targetPos = new Vec3d(
@@ -320,6 +323,6 @@ public class Clutch extends Module {
         );
         
         // 使用RotateUtils的getRotationToPos方法计算旋转
-        return RotateUtils.getRotationToPos(targetPos, eyePos);
+        return RotationUtils.getRotationToPos(targetPos, eyePos);
     }
 }

@@ -6,6 +6,7 @@ import cn.advicenext.features.module.Module;
 import cn.advicenext.features.value.ModeSetting;
 import net.minecraft.network.packet.c2s.play.PlayerMoveC2SPacket;
 
+import java.lang.annotation.Inherited;
 import java.util.List;
 
 public class Nofall extends Module {
@@ -16,6 +17,7 @@ public class Nofall extends Module {
         this.settings.add(mode);
     }
 
+    @Override
     public void onTick(TickEvent event){
         if (mc.player == null) return;
 
@@ -30,5 +32,10 @@ public class Nofall extends Module {
                 mc.player.networkHandler.sendPacket(new PlayerMoveC2SPacket.OnGroundOnly(true,mc.player.horizontalCollision));
             }
         }
+    }
+
+    @Override
+    public String getDisplayValue() {
+        return mode.getValue();
     }
 }

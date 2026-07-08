@@ -5,14 +5,12 @@ import cn.advicenext.features.module.Module;
 import cn.advicenext.features.module.Category;
 import cn.advicenext.features.value.BooleanSetting;
 import cn.advicenext.features.value.ModeSetting;
-import cn.advicenext.utility.minecraft.movement.MoveUtils;
+import cn.advicenext.utility.minecraft.movement.MovementUtils;
 import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.util.math.Vec3d;
 
 import java.util.List;
 import java.util.Objects;
-
-import static cn.advicenext.utility.Utility.player;
 
 public class Speed extends Module {
     private final ModeSetting mode = new ModeSetting("Mode", "Speed", "Speed", List.of("WatchdogHop", "WatchdogLowhop"));
@@ -42,7 +40,7 @@ public class Speed extends Module {
             final double BASH = 0.2857671997172534;
             final double SPEED_EFFECT_CONST = 0.008003278196411223;
             if (mc.player.isOnGround()) {
-                Vec3d newVelocity = MoveUtils.withStrafe(
+                Vec3d newVelocity = MovementUtils.withStrafe(
                         mc.player.getVelocity(),
                         0.2875,
                         1.0,
@@ -87,7 +85,7 @@ public class Speed extends Module {
                     // 先设置Y速度
                     mc.player.setVelocity(new Vec3d(mc.player.getVelocity().x, 0.39, mc.player.getVelocity().z));
                     // 再应用withStrafe
-                    Vec3d strafeVelocity = MoveUtils.withStrafe(
+                    Vec3d strafeVelocity = MovementUtils.withStrafe(
                             mc.player.getVelocity(),
                             0.2875,
                             1.0,
@@ -136,5 +134,10 @@ public class Speed extends Module {
                 || mc.options.forwardKey.isPressed()) {
             mc.player.jump();
         }
+    }
+
+    @Override
+    public String getDisplayValue(){
+        return mode.getValue();
     }
 }

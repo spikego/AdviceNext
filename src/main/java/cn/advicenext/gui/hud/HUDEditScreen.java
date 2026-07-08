@@ -31,7 +31,6 @@ public class HUDEditScreen extends Screen {
 
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-        renderBackground(context, mouseX, mouseY, delta);
         
         // 渲染水印
         int waterX = hudModule.watermarkX < 0 ? width + hudModule.watermarkX : hudModule.watermarkX;
@@ -56,8 +55,7 @@ public class HUDEditScreen extends Screen {
         context.drawText(textRenderer, "Target Info", targetX + 5, targetY + 5, 0xFFFFFFFF, true);
         context.drawText(textRenderer, "Health: 20.0/20.0", targetX + 5, targetY + 30, 0xFFFFFFFF, true);
         context.drawText(textRenderer, "5.2m", targetX + 5, targetY + 45, 0xFFAAAAAA, true);
-        
-        super.render(context, mouseX, mouseY, delta);
+
     }
 
     @Override

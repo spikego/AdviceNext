@@ -30,4 +30,9 @@ public class FastPlace extends Module{
     public static int getDelay() {
         return Dealay.getValue();
     }
+
+    @Override
+    public String getDisplayValue() {
+        return String.valueOf(Dealay.getValue());
+    }
 }

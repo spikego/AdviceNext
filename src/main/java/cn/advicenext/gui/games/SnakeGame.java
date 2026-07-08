@@ -51,7 +51,7 @@ public class SnakeGame extends Screen {
 
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-        this.renderBackground(context, mouseX, mouseY, delta);
+        //this.renderBackground(context, mouseX, mouseY, delta);
         
         if (gameRunning && ++tickCounter % 5 == 0) {
             updateGame();

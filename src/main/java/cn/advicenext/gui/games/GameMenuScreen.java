@@ -35,7 +35,7 @@ public class GameMenuScreen extends Screen {
 
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-        this.renderBackground(context, mouseX, mouseY, delta);
+        context.fill(0, 0, this.width, this.height, 0x80000000);
         
         context.drawCenteredTextWithShadow(textRenderer, "Mini Games", this.width / 2, 50, 0xFFFFFFFF);
         context.drawCenteredTextWithShadow(textRenderer, "Choose a game to play:", this.width / 2, 80, 0xFFAAAAAA);

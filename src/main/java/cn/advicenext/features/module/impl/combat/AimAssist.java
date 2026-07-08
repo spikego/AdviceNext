@@ -5,7 +5,8 @@ import cn.advicenext.features.module.Category;
 import cn.advicenext.features.module.Module;
 import cn.advicenext.features.value.BooleanSetting;
 import cn.advicenext.features.value.slider.DoubleSetting;
-import cn.advicenext.utility.minecraft.player.RotateUtils;
+import cn.advicenext.utility.minecraft.movement.MovementUtils;
+import cn.advicenext.utility.minecraft.player.RotationUtils;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.util.math.Vec3d;
@@ -41,11 +42,11 @@ public class AimAssist extends Module {
         // Check if target is within FOV
         if (!isWithinFOV(targetPos, playerEyePos)) return;
         
-        RotateUtils.Rotation targetRotation = RotateUtils.getRotationToPos(targetPos, playerEyePos);
-        RotateUtils.Rotation currentRotation = new RotateUtils.Rotation(mc.player.getYaw(), mc.player.getPitch());
+        RotationUtils.Rotation targetRotation = RotationUtils.getRotationToPos(targetPos, playerEyePos);
+        RotationUtils.Rotation currentRotation = new RotationUtils.Rotation(mc.player.getYaw(), mc.player.getPitch());
         
         // Smooth rotation towards target
-        RotateUtils.Rotation smoothedRotation = RotateUtils.smoothRotation(
+        RotationUtils.Rotation smoothedRotation = RotationUtils.smoothRotation(
             currentRotation, 
             targetRotation, 
             speed.getValue().floatValue()
@@ -53,7 +54,7 @@ public class AimAssist extends Module {
         
         if (silent.getValue()) {
             // Silent aim - only send rotation packets
-            RotateUtils.setSilentRotation(smoothedRotation, true);
+            RotationUtils.setSilentRotation(smoothedRotation, MovementUtils.MovementCorrection.SILENT);
         } else {
             // Normal aim - move camera
             mc.player.setYaw(smoothedRotation.yaw);
@@ -91,7 +92,7 @@ public class AimAssist extends Module {
     @Override
     public void onDisable() {
         if (silent.getValue()) {
-            RotateUtils.resetSilentRotation();
+            RotationUtils.resetSilentRotation();
         }
     }
 }

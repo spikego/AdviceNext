@@ -1,5 +1,6 @@
 package cn.advicenext.features.command;
 
+import cn.advicenext.config.ConfigManager;
 import cn.advicenext.features.command.impl.ConfigCommand;
 import cn.advicenext.features.command.impl.DebugCommand;
 import cn.advicenext.features.command.impl.HelpCommand;
@@ -59,26 +60,26 @@ public class CommandManager {
      */
     public static List<String> getCompletions(String input) {
         List<String> completions = new ArrayList<>();
-        
+
         // 如果不是命令前缀开头，不提供补全
         if (!input.startsWith(commandPrefix)) {
             return completions;
         }
-        
+
         String withoutPrefix = input.substring(commandPrefix.length());
         String[] args = withoutPrefix.split(" ");
-        
+
         // 命令名称补全
         if (args.length == 1) {
             String partial = args[0].toLowerCase();
-            
+
             // 查找匹配的命令
             for (Command command : commands) {
                 if (command.getCommand().toLowerCase().startsWith(partial)) {
                     completions.add(commandPrefix + command.getCommand());
                 }
             }
-        } 
+        }
         // 命令参数补全
         else if (args.length > 1) {
             String commandName = args[0].toLowerCase();
@@ -86,31 +87,31 @@ public class CommandManager {
                     .filter(cmd -> cmd.getCommand().toLowerCase().equals(commandName))
                     .findFirst()
                     .orElse(null);
-            
+
             if (command != null && command instanceof TabCompleter) {
                 // 获取当前正在输入的参数
                 String currentArg = args[args.length - 1].toLowerCase();
-                
+
                 // 获取命令特定的补全
                 String[] previousArgs = new String[args.length - 2];
                 System.arraycopy(args, 1, previousArgs, 0, previousArgs.length);
-                
+
                 List<String> argCompletions = ((TabCompleter) command).getCompletions(previousArgs, currentArg);
-                
+
                 // 构建完整的命令字符串
                 StringBuilder baseCommand = new StringBuilder(commandPrefix + commandName);
                 for (int i = 1; i < args.length - 1; i++) {
                     baseCommand.append(" ").append(args[i]);
                 }
                 baseCommand.append(" ");
-                
+
                 // 添加到补全列表
                 for (String completion : argCompletions) {
                     completions.add(baseCommand.toString() + completion);
                 }
             }
         }
-        
+
         return completions;
     }
 

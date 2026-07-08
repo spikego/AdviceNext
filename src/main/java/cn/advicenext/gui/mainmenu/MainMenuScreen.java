@@ -81,9 +81,6 @@ public class MainMenuScreen extends Screen {
             }
         }
         
-        // Draw background
-        renderBackground(context, mouseX, mouseY, delta);
-        
         // Draw semi-transparent overlay
         context.fill(0, 0, width, height, backgroundColor.getRGB());
         
@@ -115,21 +112,20 @@ public class MainMenuScreen extends Screen {
         
         // Draw client name
         float nameScale = 2.0f * openAnimation;
-        context.getMatrices().push();
-        context.getMatrices().scale(nameScale, nameScale, 1.0f);
+        context.getMatrices().pushMatrix();
+        context.getMatrices().scale(nameScale, nameScale);
         int nameWidth = mc.textRenderer.getWidth(clientName);
-        context.drawTextWithShadow(mc.textRenderer, clientName, 
-                                  (int)((animatedX + 20) / nameScale), 
-                                  (int)((animatedY + 20) / nameScale), 
-                                  accentColor.getRGB());
-        context.getMatrices().pop();
-        
-        // Draw version and tagline
-        context.drawTextWithShadow(mc.textRenderer, clientVersion, 
-                                  animatedX + 20 + (int)(nameWidth * nameScale) + 5, 
-                                  animatedY + 20, 
-                                  subTextColor.getRGB());
-        
+        context.drawTextWithShadow(mc.textRenderer, clientName,
+                (int)((animatedX + 20) / nameScale),
+                (int)((animatedY + 20) / nameScale),
+                accentColor.getRGB());
+        context.getMatrices().popMatrix();
+
+        context.drawTextWithShadow(mc.textRenderer, clientVersion,
+                animatedX + 20 + (int)(nameWidth * nameScale) + 5,
+                animatedY + 20,
+                subTextColor.getRGB());
+
         context.drawTextWithShadow(mc.textRenderer, clientTagline, 
                                   animatedX + 20, 
                                   animatedY + 20 + (int)(10 * nameScale), 

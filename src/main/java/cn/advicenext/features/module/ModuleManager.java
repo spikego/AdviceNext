@@ -44,7 +44,7 @@ public final class ModuleManager {
         addModule(new Velocity());
         addModule(new AimAssist());
         addModule(new LegitScaffold());
-        addModule(new ShaderEffects());
+        addModule(new GuiMove());
     }
 
     private static void addModule(Module module) {
@@ -58,6 +58,15 @@ public final class ModuleManager {
             } catch (IllegalAccessException ignored) {}
         }
         modules.add(module);
+    }
+
+    public static <T extends Module> T getModule(Class<T> clazz) {
+        for (Module module : modules) {
+            if (clazz.isInstance(module)) {
+                return clazz.cast(module);
+            }
+        }
+        return null;
     }
 
     public static List<Module> getModules() {

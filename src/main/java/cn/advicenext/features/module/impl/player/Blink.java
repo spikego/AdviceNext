@@ -52,4 +52,9 @@ public class Blink extends Module {
         String text = " Packets size - §7[§f" + packets.size() + "§7]";
         event.getContext().drawText(mc.textRenderer, text, 50, 100, 0xFFFFFF, true);
     }
+
+    @Override
+    public String getDisplayValue() {
+        return String.valueOf("size - " + packets.size());
+    }
 }

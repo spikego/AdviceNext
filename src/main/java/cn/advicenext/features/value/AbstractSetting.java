@@ -1,20 +1,28 @@
 package cn.advicenext.features.value;
 
+import java.util.function.Supplier;
+
 public abstract class AbstractSetting<T> {
     protected String name;
     protected String description;
     protected T defaultValue;
     protected T value;
+    protected Supplier<Boolean> visible;
 
-    public AbstractSetting(String name, String description, T defaultValue) {
+    public AbstractSetting(String name, String description, T defaultValue, Supplier<Boolean> visible) {
         this.name = name;
         this.description = description;
         this.defaultValue = defaultValue;
         this.value = defaultValue;
+        this.visible = visible != null ? visible : () -> true;
+    }
+
+    public AbstractSetting(String name, String description, T defaultValue) {
+        this(name, description, defaultValue, () -> true);
     }
 
     public AbstractSetting(String name, T defaultValue) {
-        this(name, "none", defaultValue);
+        this(name, "none", defaultValue, () -> true);
     }
 
     public String getName() {
@@ -47,5 +55,13 @@ public abstract class AbstractSetting<T> {
 
     public void setValue(T value) {
         this.value = value;
+    }
+
+    public Supplier<Boolean> getVisible() {
+        return visible;
+    }
+
+    public void setVisible(Supplier<Boolean> visible) {
+        this.visible = visible != null ? visible : () -> true;
     }
 }

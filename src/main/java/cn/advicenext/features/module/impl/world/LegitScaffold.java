@@ -6,7 +6,8 @@ import cn.advicenext.features.module.Module;
 import cn.advicenext.features.value.BooleanSetting;
 import cn.advicenext.features.value.slider.DoubleSetting;
 import cn.advicenext.features.value.slider.IntSetting;
-import cn.advicenext.utility.minecraft.player.RotateUtils;
+import cn.advicenext.utility.minecraft.movement.MovementUtils;
+import cn.advicenext.utility.minecraft.player.RotationUtils;
 import net.minecraft.block.BlockState;
 import net.minecraft.item.BlockItem;
 import net.minecraft.util.Hand;
@@ -70,7 +71,7 @@ public class LegitScaffold extends Module {
         
         // 重置旋转
         if (bridgeAssist.getValue()) {
-            RotateUtils.resetSilentRotation();
+            RotationUtils.resetSilentRotation();
         }
     }
     
@@ -198,20 +199,20 @@ public class LegitScaffold extends Module {
         Vec3d eyePos = mc.player.getEyePos();
         
         // 计算旋转
-        RotateUtils.Rotation rotation = RotateUtils.getRotationToPos(targetVec, eyePos);
+        RotationUtils.Rotation rotation = RotationUtils.getRotationToPos(targetVec, eyePos);
         
         // 应用旋转
         if (rotationDelay.getValue() > 0) {
             // 使用平滑旋转
-            RotateUtils.Rotation currentRot = new RotateUtils.Rotation(mc.player.getYaw(), mc.player.getPitch());
+            RotationUtils.Rotation currentRot = new RotationUtils.Rotation(mc.player.getYaw(), mc.player.getPitch());
             float speed = (float)(1.0 / (rotationDelay.getValue() * 20)); // 转换为每tick的速度
-            RotateUtils.Rotation smoothRot = RotateUtils.smoothRotation(currentRot, rotation, speed);
+            RotationUtils.Rotation smoothRot = RotationUtils.smoothRotation(currentRot, rotation, speed);
             
             // 应用旋转
-            RotateUtils.setSilentRotation(smoothRot, false);
+            RotationUtils.setSilentRotation(smoothRot, MovementUtils.MovementCorrection.OFF);
         } else {
             // 直接旋转
-            RotateUtils.setSilentRotation(rotation, false);
+            RotationUtils.setSilentRotation(rotation, MovementUtils.MovementCorrection.OFF);
         }
     }
     

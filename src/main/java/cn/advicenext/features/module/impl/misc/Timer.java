@@ -29,4 +29,9 @@ public class Timer extends Module{
         TimerUtils.setTimerSpeed(timerSpeed.getValue());
     }
 
+    @Override
+    public String getDisplayValue() {
+        return timerSpeed.getValue().toString();
+    }
+
 }

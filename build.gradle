@@ -3,7 +3,6 @@ plugins {
 	id 'maven-publish'
 	id 'org.jetbrains.kotlin.jvm'
 	id 'application'
-	id 'org.openjfx.javafxplugin' version '0.0.8'
 }
 
 version = project.mod_version
@@ -30,10 +29,6 @@ fabricApi {
 	}
 }
 
-javafx {
-	version = "11.0.2"
-	modules = ['javafx.controls', 'javafx.fxml']
-}
 
 dependencies {
 	// To change the versions see the gradle.properties file
@@ -56,6 +51,7 @@ dependencies {
 	//lwjgl
 	modImplementation "org.lwjgl:lwjgl-harfbuzz:3.3.3"
 	modImplementation "org.lwjgl:lwjgl-opengl:3.3.3"
+	modImplementation "org.lwjgl:lwjgl-nanovg:3.3.3"
 
 
 	//lua script
@@ -73,7 +69,6 @@ dependencies {
 	//others
 	modImplementation 'com.github.CCBlueX:mc-authlib:1.4.1'
 	include 'com.github.CCBlueX:mc-authlib:1.4.1'
-
 
 }
 

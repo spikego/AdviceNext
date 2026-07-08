@@ -6,11 +6,11 @@ import cn.advicenext.features.module.Module;
 import cn.advicenext.features.module.ModuleManager;
 import cn.advicenext.features.notification.NotificationManager;
 import cn.advicenext.features.value.BooleanSetting;
+import cn.advicenext.features.value.StringSetting;
 import cn.advicenext.gui.colors.Colors;
 import cn.advicenext.gui.hud.HUDEditScreen;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.util.hit.EntityHitResult;
-import org.lwjgl.glfw.GLFW;
 
 import java.util.Comparator;
 import java.util.List;
@@ -19,6 +19,7 @@ import java.util.stream.Collectors;
 public class HUD extends Module {
 
     private final BooleanSetting WaterMark = new BooleanSetting("WaterMark", "WaterMark", true);
+    private final StringSetting WaterMarkText = new StringSetting("WaterMarkText", "WaterMarkText", "AdviceNext");
     private final BooleanSetting ArrayList = new BooleanSetting("ArrayList", "Shows enabled modules", true);
     private final BooleanSetting Notification = new BooleanSetting("Notifications", "Shows notifications", true);
     private final BooleanSetting TargetInfo = new BooleanSetting("TargetInfo", "Shows target player info", true);
@@ -46,7 +47,7 @@ public class HUD extends Module {
         if (WaterMark.getValue()) {
             int x = watermarkX < 0 ? mc.getWindow().getScaledWidth() + watermarkX : watermarkX;
             int y = watermarkY < 0 ? mc.getWindow().getScaledHeight() + watermarkY : watermarkY;
-            event.getContext().drawText(mc.textRenderer, "AdviceNext", x, y, Colors.currentColor().getRGB(), true);
+            event.getContext().drawText(mc.textRenderer, WaterMarkText.getValue(), x, y, Colors.currentColor().getRGB(), true);
         }
 
         if (ArrayList.getValue()) {
@@ -70,8 +71,10 @@ public class HUD extends Module {
     private void renderArrayList(Render2DEvent event) {
         List<Module> enabledModules = ModuleManager.getModules().stream()
                 .filter(Module::getEnabled)
-                .sorted(Comparator.comparing(m -> -mc.textRenderer.getWidth(m.getName())))
                 .collect(Collectors.toList());
+        
+        // 按显示文本长度排序（包含value）
+        enabledModules.sort((m1, m2) -> Integer.compare(getDisplayWidth(m2), getDisplayWidth(m1)));
 
         int startY = arrayListY < 0 ? mc.getWindow().getScaledHeight() + arrayListY : arrayListY;
         int y = startY;
@@ -80,13 +83,36 @@ public class HUD extends Module {
         for (int i = 0; i < enabledModules.size(); i++) {
             Module module = enabledModules.get(i);
             String name = module.getName();
-            int width = mc.textRenderer.getWidth(name);
-            int x = arrayListX < 0 ? screenWidth + arrayListX - width : arrayListX;
+            String value = module.getDisplayValue();
+            
+            // 计算总宽度
+            int totalWidth = getDisplayWidth(module);
+            int x = arrayListX < 0 ? screenWidth + arrayListX - totalWidth : arrayListX;
 
             int color = Colors.gradientColor(i, enabledModules.size()).getRGB();
+            
+            // 绘制模块名称
             event.getContext().drawText(mc.textRenderer, name, x, y, color, true);
+            
+            // 绘制value（如果存在）
+            if (value != null && !value.isEmpty()) {
+                int nameWidth = mc.textRenderer.getWidth(name);
+                int valueColor = 0xFF808080; // 灰色
+                event.getContext().drawText(mc.textRenderer, " [" + value + "]", x + nameWidth, y, valueColor, true);
+            }
+            
             y += 10;
         }
+    }
+    
+    private int getDisplayWidth(Module module) {
+        String name = module.getName();
+        String value = module.getDisplayValue();
+        int width = mc.textRenderer.getWidth(name);
+        if (value != null && !value.isEmpty()) {
+            width += mc.textRenderer.getWidth(" [" + value + "]");
+        }
+        return width;
     }
 
     private void renderTargetInfo(Render2DEvent event) {

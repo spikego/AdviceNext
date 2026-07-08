@@ -1,10 +1,14 @@
 package cn.advicenext.features.module.impl.client;
 
 import cn.advicenext.event.impl.TickEvent;
+import cn.advicenext.features.value.BooleanSetting;
+import cn.advicenext.features.value.ModeSetting;
 import cn.advicenext.features.value.slider.IntSetting;
 import cn.advicenext.features.module.Module;
 import cn.advicenext.features.module.Category;
 import cn.advicenext.gui.colors.Colors;
+
+import java.util.List;
 
 public class ClientTheme extends Module{
     public static ClientTheme INSTANCE;
@@ -14,6 +18,8 @@ public class ClientTheme extends Module{
     private final IntSetting themeRed2 = new IntSetting("ThemeRed2", "Red component of the theme color", 255, 255, 0, 1);
     private final IntSetting themeGreen2 = new IntSetting("ThemeGreen2", "Green component of the theme color", 255, 255, 0, 1);
     private final IntSetting themeBlue2 = new IntSetting("ThemeBlue2", "Blue component of the theme color", 255, 255, 0, 1);
+    private final BooleanSetting themeSound = new BooleanSetting("ThemeSound","sound",true);
+    public final ModeSetting themeSoundStyles = new ModeSetting("ThemeSound Styles", "Sound to play when enabling the module", "Jello", List.of("Jello", "Augustus"));
 
     public ClientTheme() {
         super("ClientTheme", "Change the theme color of the client", Category.CLIENT);

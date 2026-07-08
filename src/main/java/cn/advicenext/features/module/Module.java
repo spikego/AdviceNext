@@ -1,8 +1,11 @@
 package cn.advicenext.features.module;
 
+import cn.advicenext.AdviceNext;
 import cn.advicenext.event.impl.*;
+import cn.advicenext.features.module.impl.client.ClientTheme;
 import cn.advicenext.features.notification.NotificationManager;
 import cn.advicenext.features.value.AbstractSetting;
+import cn.advicenext.utility.minecraft.client.SoundUtils;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.sound.SoundEvent;
 import net.minecraft.sound.SoundEvents;
@@ -37,6 +40,8 @@ public class Module {
 
     public void onRender3D(Render3DEvent event){}
 
+    public void onMovement(MovementEvent event) {}
+
     public void enable() {
         this.enabled = true;
         onEnable();
@@ -46,6 +51,7 @@ public class Module {
                 NotificationManager.NotificationType.INFO,
                 3000 // 3秒
         );
+        SoundUtils.playModuleSound(ClientTheme.INSTANCE.themeSoundStyles.getValue().toLowerCase(), true);
     }
 
     public void disable() {
@@ -57,6 +63,8 @@ public class Module {
                 NotificationManager.NotificationType.INFO,
                 3000 // 3秒
         );
+        SoundUtils.playModuleSound(ClientTheme.INSTANCE.themeSoundStyles.getValue().toLowerCase(), false);
+
     }
 
     public void toggle() {
@@ -90,5 +98,14 @@ public class Module {
 
     public Category getCategory() {
         return category;
+    }
+    
+    /**
+     * 获取模块在ArrayList中显示的value
+     * 子类可以重写此方法来显示特定的值
+     * @return 显示的value，null或空字符串表示不显示
+     */
+    public String getDisplayValue() {
+        return null;
     }
 }

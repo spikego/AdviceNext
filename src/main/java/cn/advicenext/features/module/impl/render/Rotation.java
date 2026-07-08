@@ -2,7 +2,7 @@ package cn.advicenext.features.module.impl.render;
 
 import cn.advicenext.features.module.Category;
 import cn.advicenext.features.module.Module;
-import cn.advicenext.utility.minecraft.player.RotateUtils;
+import cn.advicenext.utility.minecraft.player.RotationUtils;
 
 public class Rotation extends Module {
 
@@ -18,16 +18,16 @@ public class Rotation extends Module {
         return INSTANCE.enabled;
     }
     public static float getRenderYaw() {
-        RotateUtils.Rotation serverRotation = RotateUtils.getServerRotation();
+        RotationUtils.Rotation serverRotation = RotationUtils.getServerRotation();
         return serverRotation != null ? serverRotation.yaw : 0;
     }
     
     public static float getRenderPitch() {
-        RotateUtils.Rotation serverRotation = RotateUtils.getServerRotation();
+        RotationUtils.Rotation serverRotation = RotationUtils.getServerRotation();
         return serverRotation != null ? serverRotation.pitch : 0;
     }
     
     public static boolean shouldUseServerRotation() {
-        return RotateUtils.getServerRotation() != null;
+        return RotationUtils.getServerRotation() != null;
     }
 }

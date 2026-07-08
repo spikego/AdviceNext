@@ -20,13 +20,13 @@ public class Velocity extends Module {
     
     // Normal模式设置
     private final IntSetting chance = new IntSetting("Chance", "Chance to reduce velocity", 100, 100, 0, 1);
-    private final IntSetting horizontalKb = new IntSetting("Horizontal", "Horizontal knockback percentage", 0, 100, 0, 1);
-    private final IntSetting verticalKb = new IntSetting("Vertical", "Vertical knockback percentage", 0, 100, 0, 1);
+    private final IntSetting horizontalKb = new IntSetting("Horizontal", "Horizontal knockback percentage", 0, 100, 0, 1,() -> mode.is("Normal"));
+    private final IntSetting verticalKb = new IntSetting("Vertical", "Vertical knockback percentage", 0, 100, 0, 1,() -> mode.is("Normal"));
     
     // JumpReset模式设置
 
-    private final IntSetting minDelay = new IntSetting("Min Delay", "Minimum delay before jump (ms)", 0, 500, 0, 10);
-    private final IntSetting maxDelay = new IntSetting("Max Delay", "Maximum delay before jump (ms)", 0, 500, 0, 10);
+    private final IntSetting minDelay = new IntSetting("Min Delay", "Minimum delay before jump (ms)", 0, 500, 0, 10,() -> mode.is("JumpReset"));
+    private final IntSetting maxDelay = new IntSetting("Max Delay", "Maximum delay before jump (ms)", 0, 500, 0, 10,() -> mode.is("JumpReset"));
     
     // 状态变量
     private boolean shouldJump = false;
@@ -37,15 +37,6 @@ public class Velocity extends Module {
         super("Velocity", "Reduces or cancels knockback", Category.COMBAT);
         this.settings.add(mode);
         this.settings.add(chance);
-        if ("Normal".equals(mode.getValue())) {
-            this.settings.add(horizontalKb);
-            this.settings.add(verticalKb);
-        }
-
-        if("JumpReset".equals(mode.getValue())){
-            this.settings.add(minDelay);
-            this.settings.add(maxDelay);
-        }
     }
     
     @Override
@@ -195,5 +186,10 @@ public class Velocity extends Module {
                 shouldJump = false;
             }
         }
+    }
+
+    @Override
+    public String getDisplayValue() {
+        return mode.getValue();
     }
 }

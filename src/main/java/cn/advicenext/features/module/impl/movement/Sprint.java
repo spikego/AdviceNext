@@ -3,11 +3,18 @@ package cn.advicenext.features.module.impl.movement;
 import cn.advicenext.event.impl.TickEvent;
 import cn.advicenext.features.module.Category;
 import cn.advicenext.features.module.Module;
+import cn.advicenext.features.value.ModeSetting;
+
+import java.util.List;
 
 public class Sprint extends Module {
+
+    private final ModeSetting mode = new ModeSetting("Mode", "Sprint", "Legit", List.of("Legit"));
+
     public Sprint() {
         super("Sprint", "Auto sprint", Category.MOVEMENT);
         this.enabled = false;
+        this.settings.add(mode);
     }
 
     @Override
@@ -35,5 +42,10 @@ public class Sprint extends Module {
         if (mc.player != null) {
             mc.player.setSprinting(false);
         }
+    }
+    
+    @Override
+    public String getDisplayValue() {
+        return mode.getValue();
     }
 }

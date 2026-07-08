@@ -10,17 +10,15 @@ import java.util.List;
 
 public class Fly extends Module {
     private final ModeSetting mode = new ModeSetting("Mode", "Select the fly mode", "Vanilla", List.of("Vanilla","Verus"));
-    private final DoubleSetting speed = new DoubleSetting("Speed", "Vanilla fly speed",1.0, 5.0, 0.0, 0.1);
-    private final BooleanSetting vanillaBypass = new BooleanSetting("Vanilla Bypass", "Bypass vanilla fly detection", false);
+    private final DoubleSetting speed = new DoubleSetting("Speed", "Vanilla fly speed",1.0, 5.0, 0.0, 0.1,() -> mode.is("Vanilla"));
+    private final BooleanSetting vanillaBypass = new BooleanSetting("Vanilla Bypass", "Bypass vanilla fly detection", false,() -> mode.is("Vanilla"));
     private int tickCounter = 0;
 
     public Fly() {
         super("Fly", "Fly", Category.MOVEMENT);
         this.settings.add(mode);
-        if ("Vanilla".equals(mode.getValue())) {
             this.settings.add(speed);
             this.settings.add(vanillaBypass);
-        }
     }
 
     @Override
@@ -74,5 +72,10 @@ public class Fly extends Module {
             }
             tickCounter++;
         }
+    }
+
+    @Override
+    public String getDisplayValue() {
+        return mode.getValue();
     }
 }

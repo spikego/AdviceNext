@@ -14,6 +14,13 @@ public class NumberSetting<N extends Number> extends AbstractSetting<N> {
         this.step = step;
     }
 
+    public NumberSetting(String name, String description, N value, N max, N min, N step, java.util.function.Supplier<Boolean> visible) {
+        super(name, description, value, visible);
+        this.max = max;
+        this.min = min;
+        this.step = step;
+    }
+
     public N getMax() {
         return max;
     }

@@ -1,4 +1,67 @@
 package cn.advicenext.features.module.impl.player;
 
-public class GuiMove {
+import cn.advicenext.event.impl.TickEvent;
+import cn.advicenext.features.module.Module;
+import cn.advicenext.features.module.Category;
+import cn.advicenext.features.value.BooleanSetting;
+import cn.advicenext.features.value.ModeSetting;
+import net.minecraft.client.util.InputUtil;
+import net.minecraft.world.tick.Tick;
+import org.lwjgl.glfw.GLFW;
+
+import java.util.List;
+
+public class GuiMove extends Module {
+
+    private ModeSetting mode = new ModeSetting("Mode", "Mode", "Basic", List.of("Basic", "Advanced"));
+    private BooleanSetting allowSprint = new BooleanSetting("Allow Sprint", "Allow Sprint", true,() -> mode.is("Basic"));
+    private BooleanSetting allowJump = new BooleanSetting("Allow Jump", "Allow Jump", true,() -> mode.is("Basic"));
+    private BooleanSetting allowSneak = new BooleanSetting("Allow Sneak", "Allow Sneak", true,() -> mode.is("Basic"));
+    public GuiMove() {
+        super("GuiMove", "Allows you to move the GUI", Category.PLAYER);
+    }
+
+    @Override
+    public void onTick(TickEvent event){
+        if(mode.is("Basic")) {
+            if (InputUtil.isKeyPressed(mc.getWindow().getHandle(), GLFW.GLFW_KEY_W)) {
+                mc.options.forwardKey.setPressed(true);
+            }
+            if (InputUtil.isKeyPressed(mc.getWindow().getHandle(), GLFW.GLFW_KEY_S)) {
+                mc.options.backKey.setPressed(true);
+            }
+            if (InputUtil.isKeyPressed(mc.getWindow().getHandle(), GLFW.GLFW_KEY_A)) {
+                mc.options.leftKey.setPressed(true);
+            }
+            if (InputUtil.isKeyPressed(mc.getWindow().getHandle(), GLFW.GLFW_KEY_D)) {
+                mc.options.rightKey.setPressed(true);
+            }
+            if (InputUtil.isKeyPressed(mc.getWindow().getHandle(), GLFW.GLFW_KEY_SPACE) && allowJump.getValue()) {
+                mc.options.jumpKey.setPressed(true);
+            }
+            if (InputUtil.isKeyPressed(mc.getWindow().getHandle(), GLFW.GLFW_KEY_LEFT_SHIFT) && allowSneak.getValue()) {
+                mc.options.sneakKey.setPressed(true);
+            }
+            if (InputUtil.isKeyPressed(mc.getWindow().getHandle(), GLFW.GLFW_KEY_LEFT_CONTROL) && allowSprint.getValue()) {
+                mc.options.sprintKey.setPressed(true);
+            }
+        }
+    }
+
+    @Override
+    public void onDisable() {
+        mc.options.forwardKey.setPressed(false);
+        mc.options.backKey.setPressed(false);
+        mc.options.leftKey.setPressed(false);
+        mc.options.rightKey.setPressed(false);
+        mc.options.jumpKey.setPressed(false);
+        mc.options.sneakKey.setPressed(false);
+        mc.options.sprintKey.setPressed(false);
+    }
+
+    @Override
+    public String getDisplayValue() {
+        return mode.getValue();
+    }
+
 }

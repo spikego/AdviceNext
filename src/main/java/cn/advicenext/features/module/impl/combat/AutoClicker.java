@@ -57,4 +57,9 @@ public class AutoClicker extends Module {
 
     @Override
     public void onDisable() {}
+
+    @Override
+    public String getDisplayValue() {
+        return String.valueOf("CPS - " + cps.getValue());
+    }
 }

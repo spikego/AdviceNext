@@ -2,17 +2,23 @@ package cn.advicenext.features.command.impl;
 
 import cn.advicenext.debug.DebugServer;
 import cn.advicenext.features.command.Command;
+import cn.advicenext.features.command.TabCompleter;
+import net.minecraft.client.gui.tab.Tab;
+import net.minecraft.text.Text;
 
 import java.net.InetAddress;
 import java.net.NetworkInterface;
+import java.util.ArrayList;
 import java.util.Enumeration;
+import java.util.List;
 
 import static cn.advicenext.features.command.CommandManager.addMessage;
 
-public class DebugCommand extends Command {
+public class DebugCommand extends Command implements TabCompleter {
 
     public DebugCommand() {
         super("debug", "Manage debug server", new String[]{"debug <start|stop|status>"});
+
     }
 
     @Override
@@ -112,5 +118,22 @@ public class DebugCommand extends Command {
         } catch (Exception e) {
             return null;
         }
+    }
+
+    @Override
+    public List<String> getCompletions(String[] previousArgs, String currentArg) {
+        List<String> completions = new ArrayList<>();
+
+        // 如果没有参数，提供操作选项
+        if (previousArgs.length == 0) {
+            String[] actions = {"start", "stop", "status"};
+            for (String action : actions) {
+                if (action.startsWith(currentArg.toLowerCase())) {
+                    completions.add(action);
+                }
+            }
+        }
+
+        return completions;
     }
 }

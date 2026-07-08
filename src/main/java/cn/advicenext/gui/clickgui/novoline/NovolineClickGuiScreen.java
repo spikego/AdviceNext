@@ -28,7 +28,7 @@ import java.util.Set;
 public class NovolineClickGuiScreen extends Screen {
     private final MinecraftClient mc = MinecraftClient.getInstance();
     private final ClickGui clickGuiModule;
-    
+
     // GUI dimensions
     private int startX = 50;
     private int startY = 50;
@@ -37,7 +37,7 @@ public class NovolineClickGuiScreen extends Screen {
     private final int categoryHeaderHeight = 20;
     private final int moduleHeight = 16;
     private final int settingHeight = 16;
-    
+
     // Colors - Novoline inspired
     private final Color backgroundColor = new Color(0, 0, 0, 255); // Changed from 180 to 255 to remove blur
     private final Color categoryHeaderColor = new Color(25, 25, 25, 255);
@@ -47,22 +47,22 @@ public class NovolineClickGuiScreen extends Screen {
     private final Color accentColor = Colors.currentColor();
     private final Color textColor = Color.WHITE;
     private final Color subTextColor = new Color(170, 170, 170, 255);
-    
+
     // State
     private Map<Category, Integer> categoryScrollOffsets = new HashMap<>();
     private Map<Module, Boolean> expandedModules = new HashMap<>();
     private Module bindingModule = null;
-    
+
     // Dragging
     private boolean dragging = false;
     private int dragX, dragY;
     private Category draggingCategory = null;
     private Map<Category, Point> categoryPositions = new HashMap<>();
-    
+
     public NovolineClickGuiScreen(ClickGui clickGuiModule) {
         super(Text.literal("ClickGui"));
         this.clickGuiModule = clickGuiModule;
-        
+
         // Initialize scroll offsets and positions
         int x = startX;
         for (Category category : Category.values()) {
@@ -79,7 +79,7 @@ public class NovolineClickGuiScreen extends Screen {
             Point pos = categoryPositions.get(category);
             drawCategory(context, category, pos.x, pos.y, mouseX, mouseY);
         }
-        
+
         // Draw binding text if binding a key
         if (bindingModule != null) {
             String text = "Press a key... (ESC to unbind)";
@@ -87,31 +87,31 @@ public class NovolineClickGuiScreen extends Screen {
             context.fill(width / 2 - textWidth / 2 - 5, height / 2 - 10, width / 2 + textWidth / 2 + 5, height / 2 + 10, 0xAA000000);
             context.drawCenteredTextWithShadow(textRenderer, text, width / 2, height / 2 - 4, 0xFFFFFFFF);
         }
-        
+
         super.render(context, mouseX, mouseY, delta);
     }
-    
+
     private void drawCategory(DrawContext context, Category category, int x, int y, int mouseX, int mouseY) {
         // Get scroll offset for this category
         int scrollOffset = categoryScrollOffsets.getOrDefault(category, 0);
-        
+
         // Calculate total height needed
         int totalContentHeight = calculateTotalContentHeight(category);
         int visibleHeight = height - y - 30; // Leave some space at bottom
-        
+
         // Draw category header
         context.fill(x, y, x + categoryWidth, y + categoryHeaderHeight, categoryHeaderColor.getRGB());
         context.drawCenteredTextWithShadow(textRenderer, category.getName(), x + categoryWidth / 2, y + (categoryHeaderHeight - 8) / 2, accentColor.getRGB());
-        
+
         // Draw category background
         context.fill(x, y + categoryHeaderHeight, x + categoryWidth, y + categoryHeaderHeight + Math.min(totalContentHeight, visibleHeight), backgroundColor.getRGB());
-        
+
         // Draw modules
         int moduleY = y + categoryHeaderHeight - scrollOffset;
-        
+
         for (Module module : ModuleManager.getModules()) {
             if (module.getCategory() != category) continue;
-            
+
             // Skip if not visible
             if (moduleY + moduleHeight < y + categoryHeaderHeight || moduleY > y + categoryHeaderHeight + visibleHeight) {
                 moduleY += moduleHeight;
@@ -121,50 +121,50 @@ public class NovolineClickGuiScreen extends Screen {
                 }
                 continue;
             }
-            
+
             boolean isHovered = mouseX >= x && mouseX <= x + categoryWidth && mouseY >= moduleY && mouseY <= moduleY + moduleHeight;
             boolean isExpanded = expandedModules.getOrDefault(module, false);
-            
+
             // Draw module background
-            context.fill(x, moduleY, x + categoryWidth, moduleY + moduleHeight, 
+            context.fill(x, moduleY, x + categoryWidth, moduleY + moduleHeight,
                     module.getEnabled() ? moduleActiveColor.getRGB() : (isHovered ? moduleHoverColor.getRGB() : moduleColor.getRGB()));
-            
+
             // Draw module name
-            context.drawTextWithShadow(textRenderer, module.getName(), x + 5, moduleY + (moduleHeight - 8) / 2, 
+            context.drawTextWithShadow(textRenderer, module.getName(), x + 5, moduleY + (moduleHeight - 8) / 2,
                     module.getEnabled() ? accentColor.getRGB() : textColor.getRGB());
-            
+
             // Draw expand indicator if module has settings
             if (!module.settings.isEmpty()) {
                 String indicator = isExpanded ? "-" : "+";
                 context.drawTextWithShadow(textRenderer, indicator, x + categoryWidth - 10, moduleY + (moduleHeight - 8) / 2, subTextColor.getRGB());
             }
-            
+
             // Draw settings if expanded
             if (isExpanded) {
                 int settingY = moduleY + moduleHeight;
-                
+
                 // Track settings we've already displayed to avoid duplicates
                 Set<String> displayedSettings = new HashSet<>();
-                
+
                 for (AbstractSetting<?> setting : module.settings) {
                     // Skip duplicate settings
                     if (displayedSettings.contains(setting.getName())) {
                         continue;
                     }
                     displayedSettings.add(setting.getName());
-                    
+
                     // Skip if not visible
                     if (settingY + settingHeight < y + categoryHeaderHeight || settingY > y + categoryHeaderHeight + visibleHeight) {
                         settingY += settingHeight;
                         continue;
                     }
-                    
+
                     boolean settingHovered = mouseX >= x && mouseX <= x + categoryWidth && mouseY >= settingY && mouseY <= settingY + settingHeight;
-                    
+
                     // Draw setting background
-                    context.fill(x, settingY, x + categoryWidth, settingY + settingHeight, 
+                    context.fill(x, settingY, x + categoryWidth, settingY + settingHeight,
                             settingHovered ? moduleColor.brighter().getRGB() : moduleColor.getRGB());
-                    
+
                     // Draw setting based on type
                     if (setting instanceof BooleanSetting) {
                         drawBooleanSetting(context, (BooleanSetting) setting, x, settingY);
@@ -175,11 +175,11 @@ public class NovolineClickGuiScreen extends Screen {
                     } else if (setting instanceof StringSetting) {
                         drawStringSetting(context, (StringSetting) setting, x, settingY);
                     }
-                    
+
                     settingY += settingHeight;
                 }
             }
-            
+
             moduleY += moduleHeight;
             if (isExpanded) {
                 // Count unique settings to calculate height correctly
@@ -191,14 +191,14 @@ public class NovolineClickGuiScreen extends Screen {
             }
         }
     }
-    
+
     private int calculateTotalContentHeight(Category category) {
         int height = 0;
-        
+
         for (Module module : ModuleManager.getModules()) {
             if (module.getCategory() == category) {
                 height += moduleHeight;
-                
+
                 if (expandedModules.getOrDefault(module, false)) {
                     // Count unique settings to calculate height correctly
                     Set<String> uniqueSettings = new HashSet<>();
@@ -209,67 +209,67 @@ public class NovolineClickGuiScreen extends Screen {
                 }
             }
         }
-        
+
         return height;
     }
-    
+
     private void drawBooleanSetting(DrawContext context, BooleanSetting setting, int x, int y) {
         // Draw setting name
         context.drawTextWithShadow(textRenderer, setting.getName(), x + 5, y + (settingHeight - 8) / 2, textColor.getRGB());
-        
+
         // Draw toggle indicator
         int toggleX = x + categoryWidth - 15;
         int toggleY = y + (settingHeight - 8) / 2;
         int toggleWidth = 10;
         int toggleHeight = 8;
-        
-        context.fill(toggleX, toggleY, toggleX + toggleWidth, toggleY + toggleHeight, 
+
+        context.fill(toggleX, toggleY, toggleX + toggleWidth, toggleY + toggleHeight,
                 setting.getValue() ? accentColor.getRGB() : new Color(80, 80, 80).getRGB());
     }
-    
+
     private void drawModeSetting(DrawContext context, ModeSetting setting, int x, int y) {
         // Draw setting name
         context.drawTextWithShadow(textRenderer, setting.getName(), x + 5, y + (settingHeight - 8) / 2, textColor.getRGB());
-        
+
         // Draw current value
         String value = setting.getValue();
         int valueWidth = textRenderer.getWidth(value);
         context.drawTextWithShadow(textRenderer, value, x + categoryWidth - valueWidth - 5, y + (settingHeight - 8) / 2, accentColor.getRGB());
     }
-    
+
     private void drawNumberSetting(DrawContext context, NumberSetting<?> setting, int x, int y, int mouseX) {
         // Draw setting name
         context.drawTextWithShadow(textRenderer, setting.getName(), x + 5, y + (settingHeight - 8) / 2, textColor.getRGB());
-        
+
         // Draw slider
         int sliderX = x + 5;
         int sliderY = y + settingHeight - 4;
         int sliderWidth = categoryWidth - 10;
         int sliderHeight = 2;
-        
+
         // Draw slider background
         context.fill(sliderX, sliderY, sliderX + sliderWidth, sliderY + sliderHeight, new Color(80, 80, 80).getRGB());
-        
+
         // Calculate slider progress
         double min = ((Number)setting.getMin()).doubleValue();
         double max = ((Number)setting.getMax()).doubleValue();
         double value = ((Number)setting.getValue()).doubleValue();
         double percentage = (value - min) / (max - min);
         int progressWidth = (int)(sliderWidth * percentage);
-        
+
         // Draw slider progress
         context.fill(sliderX, sliderY, sliderX + progressWidth, sliderY + sliderHeight, accentColor.getRGB());
-        
+
         // Draw value
         String valueText = setting.getValue().toString();
         int valueWidth = textRenderer.getWidth(valueText);
         context.drawTextWithShadow(textRenderer, valueText, x + categoryWidth - valueWidth - 5, y + (settingHeight - 8) / 2, accentColor.getRGB());
     }
-    
+
     private void drawStringSetting(DrawContext context, StringSetting setting, int x, int y) {
         // Draw setting name
         context.drawTextWithShadow(textRenderer, setting.getName(), x + 5, y + (settingHeight - 8) / 2, textColor.getRGB());
-        
+
         // Draw current value
         String value = setting.getValue();
         int valueWidth = textRenderer.getWidth(value);
@@ -281,8 +281,8 @@ public class NovolineClickGuiScreen extends Screen {
         // Check if clicked on a category header (for dragging)
         for (Category category : Category.values()) {
             Point pos = categoryPositions.get(category);
-            if (mouseX >= pos.x && mouseX <= pos.x + categoryWidth && 
-                mouseY >= pos.y && mouseY <= pos.y + categoryHeaderHeight) {
+            if (mouseX >= pos.x && mouseX <= pos.x + categoryWidth &&
+                    mouseY >= pos.y && mouseY <= pos.y + categoryHeaderHeight) {
                 if (button == 0) { // Left click for dragging
                     dragging = true;
                     draggingCategory = category;
@@ -292,21 +292,21 @@ public class NovolineClickGuiScreen extends Screen {
                 }
             }
         }
-        
+
         // Check if clicked on a module or setting
         for (Category category : Category.values()) {
             Point pos = categoryPositions.get(category);
             int scrollOffset = categoryScrollOffsets.getOrDefault(category, 0);
             int moduleY = pos.y + categoryHeaderHeight - scrollOffset;
-            
+
             for (Module module : ModuleManager.getModules()) {
                 if (module.getCategory() != category) continue;
-                
+
                 boolean isExpanded = expandedModules.getOrDefault(module, false);
-                
+
                 // Check if clicked on module
-                if (mouseX >= pos.x && mouseX <= pos.x + categoryWidth && 
-                    mouseY >= moduleY && mouseY <= moduleY + moduleHeight) {
+                if (mouseX >= pos.x && mouseX <= pos.x + categoryWidth &&
+                        mouseY >= moduleY && mouseY <= moduleY + moduleHeight) {
                     if (button == 0) { // Left click toggles module
                         module.toggle();
                         if (clickGuiModule.sound.getValue()) {
@@ -318,30 +318,30 @@ public class NovolineClickGuiScreen extends Screen {
                     }
                     return true;
                 }
-                
+
                 // Check if clicked on settings
                 if (isExpanded) {
                     int settingY = moduleY + moduleHeight;
-                    
+
                     // Track settings we've already processed to avoid duplicates
                     Set<String> processedSettings = new HashSet<>();
-                    
+
                     for (AbstractSetting<?> setting : module.settings) {
                         // Skip duplicate settings
                         if (processedSettings.contains(setting.getName())) {
                             continue;
                         }
                         processedSettings.add(setting.getName());
-                        
-                        if (mouseX >= pos.x && mouseX <= pos.x + categoryWidth && 
-                            mouseY >= settingY && mouseY <= settingY + settingHeight) {
+
+                        if (mouseX >= pos.x && mouseX <= pos.x + categoryWidth &&
+                                mouseY >= settingY && mouseY <= settingY + settingHeight) {
                             handleSettingClick(setting, (int)mouseX, pos.x);
                             return true;
                         }
                         settingY += settingHeight;
                     }
                 }
-                
+
                 moduleY += moduleHeight;
                 if (isExpanded) {
                     // Count unique settings to calculate height correctly
@@ -353,10 +353,10 @@ public class NovolineClickGuiScreen extends Screen {
                 }
             }
         }
-        
+
         return super.mouseClicked(mouseX, mouseY, button);
     }
-    
+
     private void handleSettingClick(AbstractSetting<?> setting, int mouseX, int baseX) {
         if (setting instanceof BooleanSetting) {
             BooleanSetting boolSetting = (BooleanSetting) setting;
@@ -368,19 +368,19 @@ public class NovolineClickGuiScreen extends Screen {
             NumberSetting<?> numberSetting = (NumberSetting<?>) setting;
             updateNumberSetting(numberSetting, mouseX, baseX + 5, categoryWidth - 10);
         }
-        
+
         if (clickGuiModule.sound.getValue()) {
             mc.getSoundManager().play(net.minecraft.client.sound.PositionedSoundInstance.master(
                     net.minecraft.sound.SoundEvents.UI_BUTTON_CLICK, 1.0F));
         }
     }
-    
+
     private void updateNumberSetting(NumberSetting<?> setting, int mouseX, int sliderX, int sliderWidth) {
         double percentage = Math.max(0, Math.min(1, (double)(mouseX - sliderX) / sliderWidth));
         double min = ((Number)setting.getMin()).doubleValue();
         double max = ((Number)setting.getMax()).doubleValue();
         double newValue = min + (max - min) * percentage;
-        
+
         if (setting instanceof IntSetting) {
             IntSetting intSetting = (IntSetting) setting;
             intSetting.setValue((int) Math.round(newValue));
@@ -401,31 +401,31 @@ public class NovolineClickGuiScreen extends Screen {
             pos.y = (int) (mouseY - dragY);
             return true;
         }
-        
+
         // Handle slider dragging
         for (Category category : Category.values()) {
             Point pos = categoryPositions.get(category);
             int scrollOffset = categoryScrollOffsets.getOrDefault(category, 0);
             int moduleY = pos.y + categoryHeaderHeight - scrollOffset;
-            
+
             for (Module module : ModuleManager.getModules()) {
                 if (module.getCategory() != category) continue;
-                
+
                 boolean isExpanded = expandedModules.getOrDefault(module, false);
-                
+
                 if (isExpanded) {
                     int settingY = moduleY + moduleHeight;
-                    
+
                     // Track settings we've already processed to avoid duplicates
                     Set<String> processedSettings = new HashSet<>();
-                    
+
                     for (AbstractSetting<?> setting : module.settings) {
                         // Skip duplicate settings
                         if (processedSettings.contains(setting.getName())) {
                             continue;
                         }
                         processedSettings.add(setting.getName());
-                        
+
                         if (mouseY >= settingY && mouseY <= settingY + settingHeight && setting instanceof NumberSetting<?>) {
                             updateNumberSetting((NumberSetting<?>) setting, (int)mouseX, pos.x + 5, categoryWidth - 10);
                             return true;
@@ -433,7 +433,7 @@ public class NovolineClickGuiScreen extends Screen {
                         settingY += settingHeight;
                     }
                 }
-                
+
                 moduleY += moduleHeight;
                 if (isExpanded) {
                     // Count unique settings to calculate height correctly
@@ -445,7 +445,7 @@ public class NovolineClickGuiScreen extends Screen {
                 }
             }
         }
-        
+
         return super.mouseDragged(mouseX, mouseY, button, deltaX, deltaY);
     }
 
@@ -464,23 +464,23 @@ public class NovolineClickGuiScreen extends Screen {
         // Handle scrolling for categories
         for (Category category : Category.values()) {
             Point pos = categoryPositions.get(category);
-            
-            if (mouseX >= pos.x && mouseX <= pos.x + categoryWidth && 
-                mouseY >= pos.y + categoryHeaderHeight && mouseY <= pos.y + height - 30) {
+
+            if (mouseX >= pos.x && mouseX <= pos.x + categoryWidth &&
+                    mouseY >= pos.y + categoryHeaderHeight && mouseY <= pos.y + height - 30) {
                 int currentOffset = categoryScrollOffsets.getOrDefault(category, 0);
                 int newOffset = (int) Math.max(0, currentOffset - verticalAmount * 10);
-                
+
                 // Calculate max scroll offset
                 int totalHeight = calculateTotalContentHeight(category);
                 int visibleHeight = height - pos.y - categoryHeaderHeight - 30;
                 int maxOffset = Math.max(0, totalHeight - visibleHeight);
-                
+
                 newOffset = Math.min(newOffset, maxOffset);
                 categoryScrollOffsets.put(category, newOffset);
                 return true;
             }
         }
-        
+
         return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
     }
 
@@ -496,13 +496,13 @@ public class NovolineClickGuiScreen extends Screen {
             bindingModule = null;
             return true;
         }
-        
+
         // Close on escape
         if (keyCode == GLFW.GLFW_KEY_ESCAPE) {
             this.close();
             return true;
         }
-        
+
         return super.keyPressed(keyCode, scanCode, modifiers);
     }
 

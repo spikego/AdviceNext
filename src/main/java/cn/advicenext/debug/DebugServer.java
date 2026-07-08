@@ -16,6 +16,7 @@ import com.sun.net.httpserver.HttpServer;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.util.ScreenshotRecorder;
 import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.text.Text;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -30,6 +31,7 @@ public class DebugServer {
     private final int port = 8080;
     private final List<String> logMessages = new CopyOnWriteArrayList<>();
     private final List<String> chatMessages = new CopyOnWriteArrayList<>();
+    private final List<String> movementLogs = new CopyOnWriteArrayList<>();
     private boolean isRunning = false;
     private boolean[] movementStates = new boolean[6];
 
@@ -59,6 +61,7 @@ public class DebugServer {
             server.createContext("/api/configs", new ConfigsApiHandler());
             server.createContext("/api/config/save", new SaveConfigApiHandler());
             server.createContext("/api/config/load", new LoadConfigApiHandler());
+            server.createContext("/api/movement-logs", new MovementLogsApiHandler());
             server.setExecutor(null);
             server.start();
 
@@ -100,6 +103,15 @@ public class DebugServer {
         chatMessages.add(message);
         if (chatMessages.size() > 100) {
             chatMessages.remove(0);
+        }
+    }
+    
+    public void logMovementFix(String type, float forward, float strafe, float newForward, float newStrafe, float yawDiff) {
+        String message = String.format("[%s] F:%.2f S:%.2f -> F:%.2f S:%.2f (diff:%.1f°)", 
+            type, forward, strafe, newForward, newStrafe, yawDiff);
+        movementLogs.add("[" + System.currentTimeMillis() + "] " + message);
+        if (movementLogs.size() > 500) {
+            movementLogs.remove(0);
         }
     }
     
@@ -206,12 +218,37 @@ public class DebugServer {
             json.append("{");
             json.append("\"fps\":").append(mc.getCurrentFps()).append(",");
             json.append("\"memory\":").append(Runtime.getRuntime().totalMemory() / 1024 / 1024).append(",");
+            
             if (mc.player != null) {
                 json.append("\"x\":").append((int)mc.player.getX()).append(",");
                 json.append("\"y\":").append((int)mc.player.getY()).append(",");
-                json.append("\"z\":").append((int)mc.player.getZ());
+                json.append("\"z\":").append((int)mc.player.getZ()).append(",");
+                
+                // BPS calculation
+                double speed = Math.sqrt(mc.player.getVelocity().x * mc.player.getVelocity().x + mc.player.getVelocity().z * mc.player.getVelocity().z) * 20;
+                json.append("\"bps\":").append(String.format("%.2f", speed)).append(",");
+                
+                // Player state
+                String state = "Walk";
+                if (mc.player.getAbilities().flying) state = "Fly";
+                else if (mc.player.isSwimming()) state = "Swim";
+                else if (mc.player.isSprinting()) state = "Sprint";
+                else if (mc.player.isSneaking()) state = "Sneak";
+                json.append("\"state\":\"").append(state).append("\",");
+                
+                // Server info
+                String server = "-";
+                int ping = 0;
+                if (mc.getCurrentServerEntry() != null) {
+                    server = mc.getCurrentServerEntry().address;
+                    if (mc.getNetworkHandler() != null && mc.getNetworkHandler().getPlayerListEntry(mc.player.getUuid()) != null) {
+                        ping = mc.getNetworkHandler().getPlayerListEntry(mc.player.getUuid()).getLatency();
+                    }
+                }
+                json.append("\"server\":\"").append(server).append("\",");
+                json.append("\"ping\":").append(ping);
             } else {
-                json.append("\"x\":0,\"y\":0,\"z\":0");
+                json.append("\"x\":0,\"y\":0,\"z\":0,\"bps\":\"0.00\",\"state\":\"None\",\"server\":\"-\",\"ping\":0");
             }
             json.append("}");
             sendJsonResponse(exchange, json.toString());
@@ -504,7 +541,7 @@ public class DebugServer {
             if ("POST".equals(exchange.getRequestMethod())) {
                 MinecraftClient mc = MinecraftClient.getInstance();
                 if (mc.world != null) {
-                    mc.world.disconnect();
+                    mc.world.disconnect(Text.of("Shutdown! --AdviceNext Debug dashboard!"));
                 }
                 sendJsonResponse(exchange, "{\"success\":true}");
             }
@@ -580,6 +617,24 @@ public class DebugServer {
                 }
                 sendJsonResponse(exchange, "{\"success\":true}");
             }
+        }
+    }
+    
+    private class MovementLogsApiHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            StringBuilder json = new StringBuilder();
+            json.append("{\"logs\":[");
+            boolean first = true;
+            for (String log : movementLogs) {
+                if (!first) json.append(",");
+                json.append("{");
+                json.append("\"message\":\"").append(log.replace("\"", "\\\"")).append("\"");
+                json.append("}");
+                first = false;
+            }
+            json.append("]}");
+            sendJsonResponse(exchange, json.toString());
         }
     }
     

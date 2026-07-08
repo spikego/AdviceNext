@@ -26,4 +26,6 @@ public class MixinGameRenderer {
         float tickDelta = renderTickCounter.getDynamicDeltaTicks();
         EventBus.post(new Render3DEvent(matrices, tickDelta));
     }
+
+
 }

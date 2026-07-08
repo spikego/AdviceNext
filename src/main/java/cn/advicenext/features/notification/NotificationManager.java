@@ -1,8 +1,8 @@
 package cn.advicenext.features.notification;
 
+import cn.advicenext.AdviceNext;
 import cn.advicenext.event.impl.Render2DEvent;
 import cn.advicenext.gui.colors.Colors;
-import cn.advicenext.render.shader.ShaderEffects;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 
@@ -37,7 +37,7 @@ public class NotificationManager {
      */
     public void addNotification(String title, String message, NotificationType type, int duration) {
         notifications.add(new Notification(title, message, type, duration));
-        
+        AdviceNext.LOGGER.info("Send notification! " + "title:" + title + ",message:" + message , ",type:" + type + ",duration:" + duration);
         // 如果通知数量超过最大值，移除最早的通知
         while (notifications.size() > MAX_NOTIFICATIONS) {
             notifications.remove(0);
@@ -72,13 +72,6 @@ public class NotificationManager {
             
             // 应用模糊和泛光效果
             float effectIntensity = animation * 0.8f; // 根据动画进度调整效果强度
-            ShaderEffects.renderBlurredAndBloomedBackground(
-                context, 
-                x, y, 
-                NOTIFICATION_WIDTH, NOTIFICATION_HEIGHT, 
-                BLUR_RADIUS * effectIntensity, 
-                BLOOM_INTENSITY * effectIntensity
-            );
             
             // 绘制通知背景（半透明）
             Color bgColor = new Color(25, 25, 25, (int)(200 * animation));

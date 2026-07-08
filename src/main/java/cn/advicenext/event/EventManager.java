@@ -9,6 +9,8 @@ import cn.advicenext.features.command.CommandManager;
 import cn.advicenext.features.command.Command;
 import cn.advicenext.features.module.Module;
 import cn.advicenext.features.module.ModuleManager;
+import cn.advicenext.utility.minecraft.movement.MovementUtils;
+import cn.advicenext.utility.minecraft.player.RotationUtils;
 
 import static cn.advicenext.features.module.ModuleManager.modules;
 
@@ -78,5 +80,19 @@ public class EventManager {
                 module.onRender3D(event);
             }
         }
+    }
+
+    @Listener
+    public void onMovement(MovementEvent event) {
+        for (Module module : ModuleManager.getModules()) {
+            if (module.getEnabled()) {
+                module.onMovement(event);
+            }
+        }
+
+       if(RotationUtils.getMovementCorrection() == MovementUtils.MovementCorrection.SILENT){
+           final float yaw = RotationUtils.getServerRotation().yaw;
+           MovementUtils.fixMovement(event, yaw);
+       }
     }
 }

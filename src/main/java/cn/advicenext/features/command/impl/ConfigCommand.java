@@ -47,7 +47,7 @@ public class ConfigCommand extends Command implements TabCompleter {
 
             case "list":
                 addMessage("Available configurations:");
-                for (String config : ConfigManager.getInstance().getAvailableConfigs()) {
+                for (String config : ConfigManager.getInstance().getModuleConfig().getAvailableConfigs()) {
                     addMessage("- " + config);
                 }
                 break;
@@ -74,7 +74,7 @@ public class ConfigCommand extends Command implements TabCompleter {
         }
         // 第二个参数的补全（配置名称）
         else if (args.length == 1 && (args[0].equalsIgnoreCase("load") || args[0].equalsIgnoreCase("save"))) {
-            List<String> configs = ConfigManager.getInstance().getAvailableConfigs();
+            List<String> configs = ConfigManager.getInstance().getModuleConfig().getAvailableConfigs();
             for (String config : configs) {
                 if (config.startsWith(currentArg.toLowerCase())) {
                     completions.add(config);

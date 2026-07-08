@@ -30,12 +30,15 @@ public class Colors {
     public static Color gradientColor(int index, int total) {
         if (total <= 1) return currentColor();
         
-        float baseProgress = MathHelper.clamp((System.currentTimeMillis() % 4000) / 2000f, 0f, 1f);
-        float indexOffset = (float) index / (total - 1) * 0.5f; // 50%的偏移范围
-        float progress = (baseProgress + indexOffset) % 1.0f;
+        // 使用正弦波实现循环渐变
+        float time = (System.currentTimeMillis() % 4000) / 4000f; // 4秒循环
+        float indexOffset = (float) index / (total - 1) * 0.5f; // 索引偏移
+        float progress = (time + indexOffset) % 1.0f;
         
-        float blendFactor = progress <= 0.5f ? progress * 2 : (1 - progress) * 2;
-        return blendColors(color1, color2, blendFactor);
+        // 使用正弦波创建平滑的循环
+        float smoothProgress = (float) ((Math.sin(progress * 2 * Math.PI - Math.PI / 2) + 1) / 2);
+        
+        return blendColors(color1, color2, smoothProgress);
     }
     
     public static void showCurrentColors() {
