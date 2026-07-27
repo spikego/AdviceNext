@@ -1,5 +1,6 @@
 package cn.advicenext.features.module.impl.movement;
 
+import cn.advicenext.event.impl.PacketEvent;
 import cn.advicenext.event.impl.TickEvent;
 import cn.advicenext.features.module.Category;
 import cn.advicenext.features.module.Module;
@@ -72,6 +73,15 @@ public class Fly extends Module {
             }
             tickCounter++;
         }
+
+        if("Verus".equals(mode.getValue())){
+            // Verus fly logic
+        }
+    }
+
+    @Override
+    public void onPacket(PacketEvent event) {
+
     }
 
     @Override

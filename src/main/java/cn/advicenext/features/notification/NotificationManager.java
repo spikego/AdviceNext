@@ -31,7 +31,7 @@ public class NotificationManager {
     public static NotificationManager getInstance() {
         return INSTANCE;
     }
-    
+
     /**
      * 添加一个通知
      */

@@ -12,10 +12,13 @@ import cn.advicenext.features.value.slider.DoubleSetting;
 import cn.advicenext.features.value.slider.FloatSetting;
 import cn.advicenext.features.value.slider.IntSetting;
 import cn.advicenext.features.value.slider.NumberSetting;
+import cn.advicenext.features.value.slider.RangeSetting;
 import cn.advicenext.gui.colors.Colors;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.input.KeyInput;
 import net.minecraft.text.Text;
 import org.lwjgl.glfw.GLFW;
 
@@ -58,6 +61,10 @@ public class NovolineClickGuiScreen extends Screen {
     private int dragX, dragY;
     private Category draggingCategory = null;
     private Map<Category, Point> categoryPositions = new HashMap<>();
+
+    // Range slider dragging
+    private RangeSetting draggingRange = null;
+    private boolean draggingRangeMin = false;
 
     public NovolineClickGuiScreen(ClickGui clickGuiModule) {
         super(Text.literal("ClickGui"));
@@ -153,7 +160,12 @@ public class NovolineClickGuiScreen extends Screen {
                     }
                     displayedSettings.add(setting.getName());
 
-                    // Skip if not visible
+                    // Skip settings hidden by visibility condition
+                    if (!setting.getVisible().get()) {
+                        continue;
+                    }
+
+                    // Skip if outside the scrollable area
                     if (settingY + settingHeight < y + categoryHeaderHeight || settingY > y + categoryHeaderHeight + visibleHeight) {
                         settingY += settingHeight;
                         continue;
@@ -170,6 +182,8 @@ public class NovolineClickGuiScreen extends Screen {
                         drawBooleanSetting(context, (BooleanSetting) setting, x, settingY);
                     } else if (setting instanceof ModeSetting) {
                         drawModeSetting(context, (ModeSetting) setting, x, settingY);
+                    } else if (setting instanceof RangeSetting) {
+                        drawRangeSetting(context, (RangeSetting) setting, x, settingY);
                     } else if (setting instanceof NumberSetting<?>) {
                         drawNumberSetting(context, (NumberSetting<?>) setting, x, settingY, mouseX);
                     } else if (setting instanceof StringSetting) {
@@ -185,6 +199,7 @@ public class NovolineClickGuiScreen extends Screen {
                 // Count unique settings to calculate height correctly
                 Set<String> uniqueSettings = new HashSet<>();
                 for (AbstractSetting<?> setting : module.settings) {
+                    if (!setting.getVisible().get()) continue;
                     uniqueSettings.add(setting.getName());
                 }
                 moduleY += uniqueSettings.size() * settingHeight;
@@ -203,6 +218,7 @@ public class NovolineClickGuiScreen extends Screen {
                     // Count unique settings to calculate height correctly
                     Set<String> uniqueSettings = new HashSet<>();
                     for (AbstractSetting<?> setting : module.settings) {
+                        if (!setting.getVisible().get()) continue;
                         uniqueSettings.add(setting.getName());
                     }
                     height += uniqueSettings.size() * settingHeight;
@@ -276,8 +292,48 @@ public class NovolineClickGuiScreen extends Screen {
         context.drawTextWithShadow(textRenderer, value, x + categoryWidth - valueWidth - 5, y + (settingHeight - 8) / 2, accentColor.getRGB());
     }
 
+    private void drawRangeSetting(DrawContext context, RangeSetting setting, int x, int y) {
+        // Draw setting name
+        context.drawTextWithShadow(textRenderer, setting.getName(), x + 5, y + (settingHeight - 8) / 2, textColor.getRGB());
+
+        // Draw current range value
+        String valueText = formatRangeValue(setting.getMinValue()) + "-" + formatRangeValue(setting.getMaxValue());
+        int valueWidth = textRenderer.getWidth(valueText);
+        context.drawTextWithShadow(textRenderer, valueText, x + categoryWidth - valueWidth - 5, y + (settingHeight - 8) / 2, accentColor.getRGB());
+
+        // Draw dual-handle slider
+        int sliderX = x + 5;
+        int sliderY = y + settingHeight - 4;
+        int sliderWidth = categoryWidth - 10;
+        int sliderHeight = 2;
+
+        double boundMin = setting.getBoundMin();
+        double boundMax = setting.getBoundMax();
+        int minHandleX = sliderX + (int)(sliderWidth * (setting.getMinValue() - boundMin) / (boundMax - boundMin));
+        int maxHandleX = sliderX + (int)(sliderWidth * (setting.getMaxValue() - boundMin) / (boundMax - boundMin));
+
+        // Background bar
+        context.fill(sliderX, sliderY, sliderX + sliderWidth, sliderY + sliderHeight, new Color(80, 80, 80).getRGB());
+        // Selected range highlight
+        context.fill(minHandleX, sliderY, maxHandleX, sliderY + sliderHeight, accentColor.getRGB());
+        // Handles
+        context.fill(minHandleX - 1, sliderY - 1, minHandleX + 2, sliderY + sliderHeight + 1, accentColor.brighter().getRGB());
+        context.fill(maxHandleX - 1, sliderY - 1, maxHandleX + 2, sliderY + sliderHeight + 1, accentColor.brighter().getRGB());
+    }
+
+    /** 范围值紧凑显示：整数值不带小数点 */
+    private String formatRangeValue(double value) {
+        if (value == Math.floor(value) && !Double.isInfinite(value)) {
+            return String.valueOf((int) value);
+        }
+        return String.format(java.util.Locale.ROOT, "%.1f", value);
+    }
+
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+    public boolean mouseClicked(Click click, boolean doubled) {
+        double mouseX = click.x();
+        double mouseY = click.y();
+        int button = click.button();
         // Check if clicked on a category header (for dragging)
         for (Category category : Category.values()) {
             Point pos = categoryPositions.get(category);
@@ -310,8 +366,8 @@ public class NovolineClickGuiScreen extends Screen {
                     if (button == 0) { // Left click toggles module
                         module.toggle();
                         if (clickGuiModule.sound.getValue()) {
-                            mc.getSoundManager().play(net.minecraft.client.sound.PositionedSoundInstance.master(
-                                    net.minecraft.sound.SoundEvents.UI_BUTTON_CLICK, 1.0F));
+                            mc.getSoundManager().play(net.minecraft.client.sound.PositionedSoundInstance.ui(
+                                    net.minecraft.sound.SoundEvents.UI_BUTTON_CLICK.value(), 1.0F));
                         }
                     } else if (button == 1 && !module.settings.isEmpty()) { // Right click expands settings
                         expandedModules.put(module, !isExpanded);
@@ -333,6 +389,11 @@ public class NovolineClickGuiScreen extends Screen {
                         }
                         processedSettings.add(setting.getName());
 
+                        // Skip settings hidden by visibility condition
+                        if (!setting.getVisible().get()) {
+                            continue;
+                        }
+
                         if (mouseX >= pos.x && mouseX <= pos.x + categoryWidth &&
                                 mouseY >= settingY && mouseY <= settingY + settingHeight) {
                             handleSettingClick(setting, (int)mouseX, pos.x);
@@ -347,6 +408,7 @@ public class NovolineClickGuiScreen extends Screen {
                     // Count unique settings to calculate height correctly
                     Set<String> uniqueSettings = new HashSet<>();
                     for (AbstractSetting<?> setting : module.settings) {
+                        if (!setting.getVisible().get()) continue;
                         uniqueSettings.add(setting.getName());
                     }
                     moduleY += uniqueSettings.size() * settingHeight;
@@ -354,7 +416,7 @@ public class NovolineClickGuiScreen extends Screen {
             }
         }
 
-        return super.mouseClicked(mouseX, mouseY, button);
+        return super.mouseClicked(click, doubled);
     }
 
     private void handleSettingClick(AbstractSetting<?> setting, int mouseX, int baseX) {
@@ -367,11 +429,37 @@ public class NovolineClickGuiScreen extends Screen {
         } else if (setting instanceof NumberSetting<?>) {
             NumberSetting<?> numberSetting = (NumberSetting<?>) setting;
             updateNumberSetting(numberSetting, mouseX, baseX + 5, categoryWidth - 10);
+        } else if (setting instanceof RangeSetting) {
+            RangeSetting rangeSetting = (RangeSetting) setting;
+            int sliderX = baseX + 5;
+            int sliderWidth = categoryWidth - 10;
+            draggingRange = rangeSetting;
+            draggingRangeMin = isCloserToMinHandle(rangeSetting, mouseX, sliderX, sliderWidth);
+            updateRangeSetting(rangeSetting, mouseX, sliderX, sliderWidth, draggingRangeMin);
         }
 
         if (clickGuiModule.sound.getValue()) {
-            mc.getSoundManager().play(net.minecraft.client.sound.PositionedSoundInstance.master(
-                    net.minecraft.sound.SoundEvents.UI_BUTTON_CLICK, 1.0F));
+            mc.getSoundManager().play(net.minecraft.client.sound.PositionedSoundInstance.ui(
+                    net.minecraft.sound.SoundEvents.UI_BUTTON_CLICK.value(), 1.0F));
+        }
+    }
+
+    /** 判断鼠标离范围滑块的 min 把手还是 max 把手更近 */
+    private boolean isCloserToMinHandle(RangeSetting setting, int mouseX, int sliderX, int sliderWidth) {
+        double boundMin = setting.getBoundMin();
+        double boundMax = setting.getBoundMax();
+        double minHandleX = sliderX + sliderWidth * (setting.getMinValue() - boundMin) / (boundMax - boundMin);
+        double maxHandleX = sliderX + sliderWidth * (setting.getMaxValue() - boundMin) / (boundMax - boundMin);
+        return Math.abs(mouseX - minHandleX) <= Math.abs(mouseX - maxHandleX);
+    }
+
+    private void updateRangeSetting(RangeSetting setting, int mouseX, int sliderX, int sliderWidth, boolean minHandle) {
+        double percentage = Math.max(0, Math.min(1, (double)(mouseX - sliderX) / sliderWidth));
+        double newValue = setting.getBoundMin() + (setting.getBoundMax() - setting.getBoundMin()) * percentage;
+        if (minHandle) {
+            setting.setMinValue(newValue);
+        } else {
+            setting.setMaxValue(newValue);
         }
     }
 
@@ -394,7 +482,26 @@ public class NovolineClickGuiScreen extends Screen {
     }
 
     @Override
-    public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
+    public boolean mouseDragged(Click click, double offsetX, double offsetY) {
+        double mouseX = click.x();
+        double mouseY = click.y();
+
+        // Range slider dragging
+        if (draggingRange != null) {
+            // 范围滑块只关心 X，找到该滑块所属的 category 以确定 sliderX
+            for (Category category : Category.values()) {
+                Point pos = categoryPositions.get(category);
+                for (Module module : ModuleManager.getModules()) {
+                    if (module.getCategory() == category && module.settings.contains(draggingRange)) {
+                        updateRangeSetting(draggingRange, (int)mouseX, pos.x + 5, categoryWidth - 10, draggingRangeMin);
+                        return true;
+                    }
+                }
+            }
+            draggingRange = null;
+            return true;
+        }
+
         if (dragging && draggingCategory != null) {
             Point pos = categoryPositions.get(draggingCategory);
             pos.x = (int) (mouseX - dragX);
@@ -426,6 +533,11 @@ public class NovolineClickGuiScreen extends Screen {
                         }
                         processedSettings.add(setting.getName());
 
+                        // Skip settings hidden by visibility condition
+                        if (!setting.getVisible().get()) {
+                            continue;
+                        }
+
                         if (mouseY >= settingY && mouseY <= settingY + settingHeight && setting instanceof NumberSetting<?>) {
                             updateNumberSetting((NumberSetting<?>) setting, (int)mouseX, pos.x + 5, categoryWidth - 10);
                             return true;
@@ -439,6 +551,7 @@ public class NovolineClickGuiScreen extends Screen {
                     // Count unique settings to calculate height correctly
                     Set<String> uniqueSettings = new HashSet<>();
                     for (AbstractSetting<?> setting : module.settings) {
+                        if (!setting.getVisible().get()) continue;
                         uniqueSettings.add(setting.getName());
                     }
                     moduleY += uniqueSettings.size() * settingHeight;
@@ -446,17 +559,21 @@ public class NovolineClickGuiScreen extends Screen {
             }
         }
 
-        return super.mouseDragged(mouseX, mouseY, button, deltaX, deltaY);
+        return super.mouseDragged(click, offsetX, offsetY);
     }
 
     @Override
-    public boolean mouseReleased(double mouseX, double mouseY, int button) {
+    public boolean mouseReleased(Click click) {
+        if (draggingRange != null) {
+            draggingRange = null;
+            return true;
+        }
         if (dragging) {
             dragging = false;
             draggingCategory = null;
             return true;
         }
-        return super.mouseReleased(mouseX, mouseY, button);
+        return super.mouseReleased(click);
     }
 
     @Override
@@ -485,7 +602,8 @@ public class NovolineClickGuiScreen extends Screen {
     }
 
     @Override
-    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+    public boolean keyPressed(KeyInput input) {
+        int keyCode = input.key();
         // Handle key binding
         if (bindingModule != null) {
             if (keyCode == GLFW.GLFW_KEY_ESCAPE) {
@@ -503,7 +621,7 @@ public class NovolineClickGuiScreen extends Screen {
             return true;
         }
 
-        return super.keyPressed(keyCode, scanCode, modifiers);
+        return super.keyPressed(input);
     }
 
     @Override

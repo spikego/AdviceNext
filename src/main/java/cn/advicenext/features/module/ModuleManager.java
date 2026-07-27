@@ -12,7 +12,6 @@ import cn.advicenext.features.module.impl.misc.*;
 import cn.advicenext.features.module.impl.world.*;
 import cn.advicenext.features.module.impl.client.*;
 import cn.advicenext.features.module.impl.player.*;
-import cn.advicenext.features.module.impl.exploit.*;
 import cn.advicenext.features.value.AbstractSetting;
 
 public final class ModuleManager {
@@ -43,7 +42,10 @@ public final class ModuleManager {
         addModule(new Nofall());
         addModule(new Velocity());
         addModule(new AimAssist());
+        addModule(new KillAura());
         addModule(new LegitScaffold());
+        addModule(new Scaffold());
+        addModule(new SafeWalk());
         addModule(new GuiMove());
     }
 

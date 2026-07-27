@@ -6,7 +6,6 @@ import cn.advicenext.features.module.Category;
 import cn.advicenext.features.value.BooleanSetting;
 import cn.advicenext.features.value.ModeSetting;
 import cn.advicenext.features.value.slider.IntSetting;
-import cn.advicenext.utility.minecraft.movement.MovementUtils;
 import cn.advicenext.utility.minecraft.player.RotationUtils;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
@@ -166,9 +165,7 @@ public class Clutch extends Module {
         // 应用旋转 - 使用RotateUtils.setSilentRotation方法
         if (SilentRotation.getValue()) {
             RotationUtils.Rotation rotation = calculateRotation(neighborPos, direction);
-            MovementUtils.MovementCorrection correction = movementFix.getValue() ?
-                    MovementUtils.MovementCorrection.SILENT : MovementUtils.MovementCorrection.OFF;
-            RotationUtils.setSilentRotation(rotation, correction);
+            RotationUtils.setSilentRotation(rotation);
         }
         
         // 应用移动修复 - 只有在启用movementFix时才考虑移动合法性

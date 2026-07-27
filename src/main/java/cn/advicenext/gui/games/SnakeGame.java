@@ -2,6 +2,7 @@ package cn.advicenext.gui.games;
 
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.input.KeyInput;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.text.Text;
 
@@ -116,8 +117,9 @@ public class SnakeGame extends Screen {
     }
 
     @Override
-    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        if (!gameRunning) return super.keyPressed(keyCode, scanCode, modifiers);
+    public boolean keyPressed(KeyInput input) {
+        int keyCode = input.key();
+        if (!gameRunning) return super.keyPressed(input);
         
         switch (keyCode) {
             case 262: if (direction != 2) direction = 0; break; // Right
@@ -125,6 +127,6 @@ public class SnakeGame extends Screen {
             case 263: if (direction != 0) direction = 2; break; // Left
             case 265: if (direction != 1) direction = 3; break; // Up
         }
-        return super.keyPressed(keyCode, scanCode, modifiers);
+        return super.keyPressed(input);
     }
 }

@@ -1,8 +1,6 @@
 package cn.advicenext.utility.minecraft.movement;
 
 import cn.advicenext.utility.Utility;
-import cn.advicenext.utility.minecraft.player.RotationUtils;
-import cn.advicenext.event.impl.MovementEvent;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 
@@ -32,9 +30,16 @@ public class MovementUtils extends Utility {
     public static final double BASE_JUMP_HEIGHT = 0.41999998688698;
     public static final double UNLOADED_CHUNK_MOTION = -0.09800000190735147;
     public static final double HEAD_HITTER_MOTION = -0.0784000015258789;
-    
-    public enum MovementCorrection {
-        OFF, SILENT, STRICT
+
+    private static final float DEG_TO_RAD = (float) Math.PI / 180F;
+
+    public static class FixedInput {
+        public final float forward;
+        public final float strafe;
+        public FixedInput(float forward, float strafe) {
+            this.forward = forward;
+            this.strafe = strafe;
+        }
     }
 
     public static double direction() {
@@ -67,71 +72,73 @@ public class MovementUtils extends Utility {
             float movementSideways,
             float yaw
     ) {
-        // 判断是否有移动输入
         if (movementForward == 0.0F && movementSideways == 0.0F) {
             return new Vec3d(0.0, vec.y, 0.0);
         }
 
-        // 计算移动方向
         double rad = Math.toRadians(yaw);
         double sin = -Math.sin(rad);
         double cos = Math.cos(rad);
 
-        // 归一化输入
         double inputLength = Math.sqrt(movementForward * movementForward + movementSideways * movementSideways);
         if (inputLength < 1.0) inputLength = 1.0;
         movementForward /= inputLength;
         movementSideways /= inputLength;
 
-        // 计算速度
         double motionX = (movementForward * sin + movementSideways * cos) * speed * strength;
         double motionZ = (movementForward * cos - movementSideways * sin) * speed * strength;
 
         return new Vec3d(motionX, vec.y, motionZ);
     }
 
-    
-    public static void fixMovement(final MovementEvent event, final float yaw) {
-        final float forward = event.getForward();
-        final float strafe = event.getStrafe();
-
-        final double angle = MathHelper.wrapDegrees(Math.toDegrees(direction(mc.player.getYaw(), forward, strafe)));
-
-        if (forward == 0 && strafe == 0) {
-            return;
-        }
-
-        float closestForward = 0, closestStrafe = 0, closestDifference = Float.MAX_VALUE;
-
-        for (float predictedForward = -1F; predictedForward <= 1F; predictedForward += 1F) {
-            for (float predictedStrafe = -1F; predictedStrafe <= 1F; predictedStrafe += 1F) {
-                if (predictedStrafe == 0 && predictedForward == 0) continue;
-
-                final double predictedAngle = MathHelper.wrapDegrees(Math.toDegrees(direction(yaw, predictedForward, predictedStrafe)));
-                final double difference = Math.abs(angle - predictedAngle);
-
-                if (difference < closestDifference) {
-                    closestDifference = (float) difference;
-                    closestForward = predictedForward;
-                    closestStrafe = predictedStrafe;
-                }
-            }
-        }
-
-        event.setForward(closestForward);
-        event.setStrafe(closestStrafe);
-    }
-    
     public static double direction(float yaw, float forward, float strafe) {
         if (forward < 0F) yaw += 180F;
-        
+
         float side = 1F;
         if (forward < 0F) side = -0.5F;
         else if (forward > 0F) side = 0.5F;
-        
+
         if (strafe > 0F) yaw -= 90F * side;
         if (strafe < 0F) yaw += 90F * side;
-        
+
         return Math.toRadians(yaw);
+    }
+
+    public static float calculateYawFromDelta(double deltaX, double deltaZ) {
+        return (float) (Math.toDegrees(Math.atan2(deltaZ, deltaX)) - 90.0F);
+    }
+
+    public static float calculatePitchFromDelta(double deltaX, double deltaY, double deltaZ) {
+        double horizontalDistance = Math.sqrt(deltaX * deltaX + deltaZ * deltaZ);
+        return (float) -Math.toDegrees(Math.atan2(deltaY, horizontalDistance));
+    }
+
+    /**
+     * 根据服务端 yaw 差值修正玩家的移动输入。
+     * 委托 {@link MovementCorrection#rotate(float, float)}，
+     * 实际运行时的输入修正在 KeyboardInput.tick 中统一完成。
+     *
+     * @param forward 原始 forward 输入 (W/S)
+     * @param strafe  原始 strafe 输入 (A/D)
+     * @return 修正后的输入
+     */
+    public static FixedInput transformInput(float forward, float strafe) {
+        if (mc.player == null || !MovementCorrection.isActive()) {
+            return new FixedInput(forward, strafe);
+        }
+
+        float[] fixed = MovementCorrection.rotate(strafe, forward);
+        return new FixedInput(fixed[1], fixed[0]);
+    }
+
+    public static Vec3d getRotationVector(float yaw, float pitch) {
+        float radPitch = pitch * DEG_TO_RAD;
+        float radYaw = -yaw * DEG_TO_RAD;
+        float cosPitch = MathHelper.cos(radPitch);
+        return new Vec3d(
+            MathHelper.sin(radYaw) * cosPitch,
+            -MathHelper.sin(radPitch),
+            MathHelper.cos(radYaw) * cosPitch
+        );
     }
 }

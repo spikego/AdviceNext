@@ -5,7 +5,7 @@ import cn.advicenext.features.module.Module;
 import cn.advicenext.features.module.Category;
 import cn.advicenext.features.value.BooleanSetting;
 import cn.advicenext.features.value.ModeSetting;
-import net.minecraft.client.util.InputUtil;
+
 import net.minecraft.world.tick.Tick;
 import org.lwjgl.glfw.GLFW;
 
@@ -24,25 +24,25 @@ public class GuiMove extends Module {
     @Override
     public void onTick(TickEvent event){
         if(mode.is("Basic")) {
-            if (InputUtil.isKeyPressed(mc.getWindow().getHandle(), GLFW.GLFW_KEY_W)) {
+            if (GLFW.glfwGetKey(mc.getWindow().getHandle(), GLFW.GLFW_KEY_W) == GLFW.GLFW_PRESS) {
                 mc.options.forwardKey.setPressed(true);
             }
-            if (InputUtil.isKeyPressed(mc.getWindow().getHandle(), GLFW.GLFW_KEY_S)) {
+            if (GLFW.glfwGetKey(mc.getWindow().getHandle(), GLFW.GLFW_KEY_S) == GLFW.GLFW_PRESS) {
                 mc.options.backKey.setPressed(true);
             }
-            if (InputUtil.isKeyPressed(mc.getWindow().getHandle(), GLFW.GLFW_KEY_A)) {
+            if (GLFW.glfwGetKey(mc.getWindow().getHandle(), GLFW.GLFW_KEY_A) == GLFW.GLFW_PRESS) {
                 mc.options.leftKey.setPressed(true);
             }
-            if (InputUtil.isKeyPressed(mc.getWindow().getHandle(), GLFW.GLFW_KEY_D)) {
+            if (GLFW.glfwGetKey(mc.getWindow().getHandle(), GLFW.GLFW_KEY_D) == GLFW.GLFW_PRESS) {
                 mc.options.rightKey.setPressed(true);
             }
-            if (InputUtil.isKeyPressed(mc.getWindow().getHandle(), GLFW.GLFW_KEY_SPACE) && allowJump.getValue()) {
+            if (GLFW.glfwGetKey(mc.getWindow().getHandle(), GLFW.GLFW_KEY_SPACE) == GLFW.GLFW_PRESS && allowJump.getValue()) {
                 mc.options.jumpKey.setPressed(true);
             }
-            if (InputUtil.isKeyPressed(mc.getWindow().getHandle(), GLFW.GLFW_KEY_LEFT_SHIFT) && allowSneak.getValue()) {
+            if (GLFW.glfwGetKey(mc.getWindow().getHandle(), GLFW.GLFW_KEY_LEFT_SHIFT) == GLFW.GLFW_PRESS && allowSneak.getValue()) {
                 mc.options.sneakKey.setPressed(true);
             }
-            if (InputUtil.isKeyPressed(mc.getWindow().getHandle(), GLFW.GLFW_KEY_LEFT_CONTROL) && allowSprint.getValue()) {
+            if (GLFW.glfwGetKey(mc.getWindow().getHandle(), GLFW.GLFW_KEY_LEFT_CONTROL) == GLFW.GLFW_PRESS && allowSprint.getValue()) {
                 mc.options.sprintKey.setPressed(true);
             }
         }

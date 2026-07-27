@@ -2,6 +2,7 @@ package cn.advicenext.gui.games;
 
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.input.KeyInput;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.text.Text;
 
@@ -135,7 +136,8 @@ public class SpaceShooterGame extends Screen {
     }
 
     @Override
-    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+    public boolean keyPressed(KeyInput input) {
+        int keyCode = input.key();
         switch (keyCode) {
             case 65: keys[0] = true; break; // A
             case 68: keys[1] = true; break; // D
@@ -147,17 +149,18 @@ public class SpaceShooterGame extends Screen {
                 }
                 break;
         }
-        return super.keyPressed(keyCode, scanCode, modifiers);
+        return super.keyPressed(input);
     }
 
     @Override
-    public boolean keyReleased(int keyCode, int scanCode, int modifiers) {
+    public boolean keyReleased(KeyInput input) {
+        int keyCode = input.key();
         switch (keyCode) {
             case 65: keys[0] = false; break; // A
             case 68: keys[1] = false; break; // D
             case 87: keys[2] = false; break; // W
             case 83: keys[3] = false; break; // S
         }
-        return super.keyReleased(keyCode, scanCode, modifiers);
+        return super.keyReleased(input);
     }
 }

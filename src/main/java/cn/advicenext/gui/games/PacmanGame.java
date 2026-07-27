@@ -2,6 +2,7 @@ package cn.advicenext.gui.games;
 
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.input.KeyInput;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.text.Text;
 
@@ -87,13 +88,14 @@ public class PacmanGame extends Screen {
     }
 
     @Override
-    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+    public boolean keyPressed(KeyInput input) {
+        int keyCode = input.key();
         switch (keyCode) {
             case 262: direction = 0; break; // Right
             case 264: direction = 1; break; // Down
             case 263: direction = 2; break; // Left
             case 265: direction = 3; break; // Up
         }
-        return super.keyPressed(keyCode, scanCode, modifiers);
+        return super.keyPressed(input);
     }
 }

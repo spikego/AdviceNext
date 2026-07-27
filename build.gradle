@@ -52,6 +52,12 @@ dependencies {
 	modImplementation "org.lwjgl:lwjgl-harfbuzz:3.3.3"
 	modImplementation "org.lwjgl:lwjgl-opengl:3.3.3"
 	modImplementation "org.lwjgl:lwjgl-nanovg:3.3.3"
+	
+	// Skija - 字体渲染引擎
+	modImplementation "io.github.humbleui:skija-shared:0.143.17"
+	modImplementation "io.github.humbleui:skija-windows-x64:0.143.17"
+	include("io.github.humbleui:skija-shared:0.143.17")
+	include("io.github.humbleui:skija-windows-x64:0.143.17")
 
 
 	//lua script
@@ -69,6 +75,8 @@ dependencies {
 	//others
 	modImplementation 'com.github.CCBlueX:mc-authlib:1.4.1'
 	include 'com.github.CCBlueX:mc-authlib:1.4.1'
+	modImplementation 'it.unimi.dsi:fastutil:8.5.12'
+	include 'it.unimi.dsi:fastutil:8.5.12'
 
 }
 

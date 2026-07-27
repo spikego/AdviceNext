@@ -71,27 +71,6 @@ public class Velocity extends Module {
                     
                     if (horizontalKb.getValue() == 0 && verticalKb.getValue() == 0) {
                         // 完全取消KB
-                        event.cancelled = true;
-                    } else if (horizontalKb.getValue() != 100 || verticalKb.getValue() != 100) {
-                        // 修改KB值
-                        double hMultiplier = horizontalKb.getValue() / 100.0;
-                        double vMultiplier = verticalKb.getValue() / 100.0;
-                        
-                        int velX = (int) (packet.getVelocityX() * hMultiplier);
-                        int velY = (int) (packet.getVelocityY() * vMultiplier);
-                        int velZ = (int) (packet.getVelocityZ() * hMultiplier);
-                        
-                        // 取消原始数据包
-                        event.cancelled = true;
-                        
-                        // 直接修改玩家速度
-                        if (velY > 0) {
-                            mc.player.setVelocity(
-                                mc.player.getVelocity().x + velX / 8000.0,
-                                mc.player.getVelocity().y + velY / 8000.0,
-                                mc.player.getVelocity().z + velZ / 8000.0
-                            );
-                        }
                     }
                 } else if (currentMode.equals("JumpReset")) {
                     // 检查几率

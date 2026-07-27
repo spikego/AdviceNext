@@ -12,11 +12,14 @@ import cn.advicenext.features.value.BooleanSetting;
 import cn.advicenext.features.value.ModeSetting;
 import cn.advicenext.features.value.StringSetting;
 import cn.advicenext.features.value.slider.NumberSetting;
+import cn.advicenext.features.value.slider.RangeSetting;
 import cn.advicenext.gui.clickgui.animation.AnimationUtil;
 import cn.advicenext.gui.colors.Colors;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.input.KeyInput;
 import net.minecraft.text.Text;
 import org.lwjgl.glfw.GLFW;
 
@@ -58,7 +61,7 @@ public class ClickGuiScreen extends Screen {
     // Animation
     private long openTime;
     private float openAnimation = 0f;
-    private float categoryIndicatorY = 40f; // Starting position
+    private float categoryIndicatorY = 40f;
     private float targetIndicatorY = 40f;
 
     // Dragging
@@ -67,6 +70,7 @@ public class ClickGuiScreen extends Screen {
 
     // Settings
     private AbstractSetting<?> draggingSetting = null;
+    private boolean draggingRangeMinHandle = false;
 
     public ClickGuiScreen(ClickGui clickGuiModule) {
         super(Text.literal("ClickGui"));
@@ -212,6 +216,11 @@ public class ClickGuiScreen extends Screen {
                 }
                 displayedSettings.add(setting.getName());
 
+                // Skip settings hidden by visibility condition
+                if (!setting.getVisible().get()) {
+                    continue;
+                }
+
                 if (setting instanceof BooleanSetting) {
                     BooleanSetting boolSetting = (BooleanSetting) setting;
 
@@ -271,6 +280,38 @@ public class ClickGuiScreen extends Screen {
                     int progressWidth = (int)(sliderWidth * percentage);
                     context.fill(sliderX, sliderY, sliderX + progressWidth, sliderY + 2, accentColor.getRGB());
 
+                } else if (setting instanceof RangeSetting) {
+                    RangeSetting rangeSetting = (RangeSetting) setting;
+
+                    // Draw setting background
+                    context.fill(settingsX, settingsY, settingsX + settingsWidth, settingsY + 20, moduleColor.getRGB());
+
+                    // Draw setting name
+                    context.drawTextWithShadow(mc.textRenderer, setting.getName(), settingsX + 5, settingsY + 6, textColor.getRGB());
+
+                    // Draw current range value
+                    String value = formatRangeValue(rangeSetting.getMinValue()) + " - " + formatRangeValue(rangeSetting.getMaxValue());
+                    int valueWidth = mc.textRenderer.getWidth(value);
+                    context.drawTextWithShadow(mc.textRenderer, value, settingsX + settingsWidth - valueWidth - 5, settingsY + 6, accentColor.getRGB());
+
+                    // Draw dual-handle slider
+                    int sliderY = settingsY + 15;
+                    int sliderWidth = settingsWidth - 10;
+                    int sliderX = settingsX + 5;
+
+                    double boundMin = rangeSetting.getBoundMin();
+                    double boundMax = rangeSetting.getBoundMax();
+                    int minHandleX = sliderX + (int)(sliderWidth * (rangeSetting.getMinValue() - boundMin) / (boundMax - boundMin));
+                    int maxHandleX = sliderX + (int)(sliderWidth * (rangeSetting.getMaxValue() - boundMin) / (boundMax - boundMin));
+
+                    // Background bar
+                    context.fill(sliderX, sliderY, sliderX + sliderWidth, sliderY + 2, new Color(50, 50, 50, 255).getRGB());
+                    // Selected range highlight
+                    context.fill(minHandleX, sliderY, maxHandleX, sliderY + 2, accentColor.getRGB());
+                    // Handles
+                    context.fill(minHandleX - 1, sliderY - 2, minHandleX + 2, sliderY + 4, accentColor.brighter().getRGB());
+                    context.fill(maxHandleX - 1, sliderY - 2, maxHandleX + 2, sliderY + 4, accentColor.brighter().getRGB());
+
                 } else if (setting instanceof StringSetting) {
                     StringSetting stringSetting = (StringSetting) setting;
 
@@ -292,7 +333,11 @@ public class ClickGuiScreen extends Screen {
     }
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+    public boolean mouseClicked(Click click, boolean doubled) {
+        double mouseX = click.x();
+        double mouseY = click.y();
+        int button = click.button();
+
         if (openAnimation < 1f) return false;
 
         // Check if clicked on the header (for dragging)
@@ -309,7 +354,7 @@ public class ClickGuiScreen extends Screen {
             if (mouseX >= guiX && mouseX <= guiX + sidebarWidth && mouseY >= categoryY && mouseY <= categoryY + 20) {
                 previousCategory = selectedCategory;
                 selectedCategory = category;
-                selectedModule = null; // Reset selected module when changing category
+                selectedModule = null;
                 return true;
             }
             categoryY += 25;
@@ -324,9 +369,9 @@ public class ClickGuiScreen extends Screen {
         for (Module module : ModuleManager.getModules()) {
             if (module.getCategory() == selectedCategory) {
                 if (mouseX >= moduleX && mouseX <= moduleX + moduleWidth && mouseY >= moduleY && mouseY <= moduleY + moduleHeight) {
-                    if (button == 0) { // Left click toggles module
+                    if (button == 0) {
                         module.toggle();
-                    } else if (button == 1) { // Right click selects module for settings
+                    } else if (button == 1) {
                         selectedModule = module;
                     }
                     return true;
@@ -363,6 +408,11 @@ public class ClickGuiScreen extends Screen {
                 }
                 processedSettings.add(setting.getName());
 
+                // Skip settings hidden by visibility condition
+                if (!setting.getVisible().get()) {
+                    continue;
+                }
+
                 if (mouseX >= settingsX && mouseX <= settingsX + settingsWidth && mouseY >= settingsY && mouseY <= settingsY + 20) {
                     if (setting instanceof BooleanSetting) {
                         BooleanSetting boolSetting = (BooleanSetting) setting;
@@ -374,6 +424,13 @@ public class ClickGuiScreen extends Screen {
                         NumberSetting<?> numberSetting = (NumberSetting<?>) setting;
                         draggingSetting = setting;
                         updateNumberSetting(numberSetting, (int)mouseX, settingsX + 5, settingsWidth - 10);
+                    } else if (setting instanceof RangeSetting) {
+                        RangeSetting rangeSetting = (RangeSetting) setting;
+                        draggingSetting = setting;
+                        int sliderX = settingsX + 5;
+                        int sliderWidth = settingsWidth - 10;
+                        draggingRangeMinHandle = isCloserToMinHandle(rangeSetting, (int)mouseX, sliderX, sliderWidth);
+                        updateRangeSetting(rangeSetting, (int)mouseX, sliderX, sliderWidth, draggingRangeMinHandle);
                     }
                     return true;
                 }
@@ -381,25 +438,28 @@ public class ClickGuiScreen extends Screen {
             }
         }
 
-        return super.mouseClicked(mouseX, mouseY, button);
+        return super.mouseClicked(click, doubled);
     }
 
     @Override
-    public boolean mouseReleased(double mouseX, double mouseY, int button) {
+    public boolean mouseReleased(Click click) {
         dragging = false;
         draggingSetting = null;
-        return super.mouseReleased(mouseX, mouseY, button);
+        return super.mouseReleased(click);
     }
 
     @Override
-    public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
+    public boolean mouseDragged(Click click, double offsetX, double offsetY) {
+        double mouseX = click.x();
+        double mouseY = click.y();
+
         if (dragging) {
             guiX = (int) (mouseX - dragX);
             guiY = (int) (mouseY - dragY);
             return true;
         }
 
-        if (draggingSetting != null && draggingSetting instanceof NumberSetting<?>) {
+        if (draggingSetting instanceof NumberSetting<?>) {
             NumberSetting<?> numberSetting = (NumberSetting<?>) draggingSetting;
             int settingsX = guiX + sidebarWidth + 150 + 20;
             int settingsWidth = guiWidth - sidebarWidth - 150 - 30;
@@ -407,7 +467,20 @@ public class ClickGuiScreen extends Screen {
             return true;
         }
 
-        return super.mouseDragged(mouseX, mouseY, button, deltaX, deltaY);
+        if (draggingSetting instanceof RangeSetting) {
+            RangeSetting rangeSetting = (RangeSetting) draggingSetting;
+            int settingsX = guiX + sidebarWidth + 150 + 20;
+            int settingsWidth = guiWidth - sidebarWidth - 150 - 30;
+            updateRangeSetting(rangeSetting, (int)mouseX, settingsX + 5, settingsWidth - 10, draggingRangeMinHandle);
+            return true;
+        }
+
+        return super.mouseDragged(click, offsetX, offsetY);
+    }
+
+    @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
+        return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
     }
 
     private void updateNumberSetting(NumberSetting<?> setting, int mouseX, int sliderX, int sliderWidth) {
@@ -425,11 +498,39 @@ public class ClickGuiScreen extends Screen {
         }
     }
 
+    /** 判断鼠标离范围滑块的 min 把手还是 max 把手更近 */
+    private boolean isCloserToMinHandle(RangeSetting setting, int mouseX, int sliderX, int sliderWidth) {
+        double boundMin = setting.getBoundMin();
+        double boundMax = setting.getBoundMax();
+        double minHandleX = sliderX + sliderWidth * (setting.getMinValue() - boundMin) / (boundMax - boundMin);
+        double maxHandleX = sliderX + sliderWidth * (setting.getMaxValue() - boundMin) / (boundMax - boundMin);
+        return Math.abs(mouseX - minHandleX) <= Math.abs(mouseX - maxHandleX);
+    }
+
+    private void updateRangeSetting(RangeSetting setting, int mouseX, int sliderX, int sliderWidth, boolean minHandle) {
+        double percentage = Math.max(0, Math.min(1, (double)(mouseX - sliderX) / sliderWidth));
+        double newValue = setting.getBoundMin() + (setting.getBoundMax() - setting.getBoundMin()) * percentage;
+        if (minHandle) {
+            setting.setMinValue(newValue);
+        } else {
+            setting.setMaxValue(newValue);
+        }
+    }
+
+    /** 范围值紧凑显示：整数值不带小数点 */
+    private String formatRangeValue(double value) {
+        if (value == Math.floor(value) && !Double.isInfinite(value)) {
+            return String.valueOf((int) value);
+        }
+        return String.format(java.util.Locale.ROOT, "%.1f", value);
+    }
+
     @Override
-    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+    public boolean keyPressed(KeyInput input) {
+        int keyCode = input.key();
         if (bindingKey && bindingModule != null) {
             if (keyCode == GLFW.GLFW_KEY_ESCAPE) {
-                bindingModule.bindKey(-1); // Unbind
+                bindingModule.bindKey(-1);
             } else {
                 bindingModule.bindKey(keyCode);
             }
@@ -438,7 +539,7 @@ public class ClickGuiScreen extends Screen {
             return true;
         }
 
-        return super.keyPressed(keyCode, scanCode, modifiers);
+        return super.keyPressed(input);
     }
 
     @Override

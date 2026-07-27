@@ -7,8 +7,7 @@ public enum Category {
     RENDER("Render"),
     PLAYER("Player"),
     WORLD("World"),
-    MISC("Misc"),
-    EXPLOIT("Exploit");
+    MISC("Misc");
 
     private final String name;
 

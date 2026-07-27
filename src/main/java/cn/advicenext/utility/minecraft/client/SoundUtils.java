@@ -26,7 +26,7 @@ public class SoundUtils {
     public static void playSound(SoundEvent sound, float volume, float pitch) {
         if (mc.world == null) return;
         
-        mc.getSoundManager().play(PositionedSoundInstance.master(sound, pitch, volume));
+        mc.getSoundManager().play(PositionedSoundInstance.ui(sound, pitch));
     }
     
     public static void playSoundAt(SoundEvent sound, Vec3d pos) {

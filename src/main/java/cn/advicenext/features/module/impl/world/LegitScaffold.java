@@ -6,7 +6,6 @@ import cn.advicenext.features.module.Module;
 import cn.advicenext.features.value.BooleanSetting;
 import cn.advicenext.features.value.slider.DoubleSetting;
 import cn.advicenext.features.value.slider.IntSetting;
-import cn.advicenext.utility.minecraft.movement.MovementUtils;
 import cn.advicenext.utility.minecraft.player.RotationUtils;
 import net.minecraft.block.BlockState;
 import net.minecraft.item.BlockItem;
@@ -209,10 +208,10 @@ public class LegitScaffold extends Module {
             RotationUtils.Rotation smoothRot = RotationUtils.smoothRotation(currentRot, rotation, speed);
             
             // 应用旋转
-            RotationUtils.setSilentRotation(smoothRot, MovementUtils.MovementCorrection.OFF);
+            RotationUtils.setSilentRotation(smoothRot);
         } else {
             // 直接旋转
-            RotationUtils.setSilentRotation(rotation, MovementUtils.MovementCorrection.OFF);
+            RotationUtils.setSilentRotation(rotation);
         }
     }
     

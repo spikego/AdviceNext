@@ -3,6 +3,7 @@ package cn.advicenext.gui.mainmenu;
 import cn.advicenext.gui.clientmenu.AltManagerGui;
 import cn.advicenext.gui.colors.Colors;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.text.Text;
@@ -198,12 +199,12 @@ public class MainMenuScreen extends Screen {
     }
     
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+    public boolean mouseClicked(Click click, boolean doubled) {
         if (hoveredButton >= 0 && hoveredButton < buttons.size() && openAnimation >= 0.9f && !closingAnimation) {
             buttons.get(hoveredButton).action.run();
             return true;
         }
-        return super.mouseClicked(mouseX, mouseY, button);
+        return super.mouseClicked(click, doubled);
     }
     
     @Override

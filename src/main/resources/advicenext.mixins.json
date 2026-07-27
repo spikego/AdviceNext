@@ -1,10 +1,12 @@
-{
+﻿{
   "required": true,
   "package": "cn.advicenext.mixin",
   "compatibilityLevel": "JAVA_21",
   "refmap": "advice-next-refmap.json",
   "mixins": [
     "minecraft.client.MixinMinecraftClient",
+    "minecraft.entity.MixinEntity",
+    "minecraft.entity.MixinLivingEntity",
     "minecraft.entity.MixinPlayerEntity",
     "minecraft.network.MixinClientConnection"
   ],
@@ -15,17 +17,22 @@
     "blaze3d.MixinRenderSystem",
     "blaze3d.RenderPipelineBuilderAccessor",
     "blaze3d.RenderPipelineMixin",
+    "minecraft.client.InputAccessor",
     "minecraft.client.MixinChatInputSuggestor",
     "minecraft.client.MixinKeyboard",
+    "minecraft.client.MixinKeyboardInput",
+    "minecraft.client.MixinKeyboardInputSprint",
     "minecraft.client.MixinRenderTickCounter",
     "minecraft.client.MixinWindow",
+    
     "minecraft.entity.MixinClientPlayerEntity",
     "minecraft.gui.MixinInGameHud",
     "minecraft.gui.MixinSplashOverlay",
     "minecraft.gui.MixinTitleScreen",
     "minecraft.network.MixinClientPlayNetworkHandler",
+    "minecraft.network.MixinClientPlayerInteractionManager",
     "minecraft.render.MixinCamera",
     "minecraft.render.MixinGameRenderer",
-    "minecraft.render.MixinLivingEntityRenderer",
+    "minecraft.render.MixinLivingEntityRenderer"
   ]
 }

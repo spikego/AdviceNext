@@ -1,0 +1,9 @@
+---
+description: 
+alwaysApply: true
+enabled: true
+updatedAt: 2026-07-26T04:10:35.394Z
+provider: 
+---
+
+gradle如果你想尝试构建，你可以把Gradle目录设为E:/AppData/.gradle. Minecraft的client开发必须遵照"E:\文档e版\AdviceNext\.gradle\loom-cache\minecraftMaven\net\minecraft\minecraft-merged-6dd721cd7d\1.21.11-net.fabricmc.yarn.1_21_11.1.21.11+build.6-v2\minecraft-merged-6dd721cd7d-1.21.11-net.fabricmc.yarn.1_21_11.1.21.11+build.6-v2.jar"源代码，还有Fabric-yarn,基本上如果想要修改深层的东西都要通过mixin注入修改

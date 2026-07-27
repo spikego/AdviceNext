@@ -1,177 +1,108 @@
 package cn.advicenext.mixin.minecraft.render;
 
 import cn.advicenext.features.module.impl.render.MotionCamera;
-import cn.advicenext.features.module.impl.render.Rotation;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.client.render.Camera;
 import net.minecraft.entity.Entity;
-import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.BlockView;
+import net.minecraft.world.World;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+/**
+ * 动感相机实现：Camera.update 每帧算出 vanilla 目标位置后，
+ * 不直接使用，而是让相机位置按所选模式向目标位置平滑过渡。
+ */
 @Mixin(Camera.class)
 public abstract class MixinCamera {
+
     @Shadow
-    protected abstract void setPos(double x, double y, double z);
-    
-    @Shadow
-    protected abstract void setRotation(float yaw, float pitch);
+    private Vec3d pos;
 
-    private Vec3d currentPos = Vec3d.ZERO;
-    private Vec3d lastPlayerVelocity = Vec3d.ZERO;
-    private Vec3d cameraVelocity = Vec3d.ZERO;
-    private boolean isReturning = false;
-    private static final double RETURN_THRESHOLD = 0.05;
-    private static final double DEFAULT_THIRD_PERSON_DISTANCE = -3.5;
-    private static final double CAMERA_HEIGHT_OFFSET = 2.5;
+    @Unique
+    private Vec3d smoothedPos = null;
 
-    // 用于存储上一帧的时间，计算delta time
-    private long lastFrameTime = System.nanoTime();
+    @Unique
+    private Vec3d springVelocity = Vec3d.ZERO;
 
-    @Inject(method = "update", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/render/Camera;setPos(DDD)V", shift = At.Shift.AFTER), cancellable = true)
-    private void modifyCameraOrientation(BlockView area, Entity focusedEntity, boolean thirdPerson, boolean inverseView, float tickDelta, CallbackInfo ci) {
-        // Rotation模块处理 - 只在第三人称时处理，第一人称保持正常
-        if (Rotation.shouldUseServerRotation() && focusedEntity instanceof ClientPlayerEntity && thirdPerson) {
-            // 第三人称时保持摄像机视角不变，玩家模型旋转由其他mixin处理
-            // 这里不做任何摄像机旋转修改
-        }
-    }
-    
-    @Inject(method = "update", at = @At("TAIL"))
-    private void onCameraUpdate(BlockView area, Entity focusedEntity, boolean thirdPerson,
-                                boolean inverseView, float tickDelta, CallbackInfo ci) {
-        MinecraftClient mc = MinecraftClient.getInstance();
-        ClientPlayerEntity player = mc.player;
+    @Unique
+    private long lastFrameTime = 0;
 
-        // Return if module disabled, no player, or in second person view
-        if (!MotionCamera.isEnabled() ||
-                player == null ||
-                (thirdPerson && inverseView)) return;
-
-        if (MotionCamera.isOnlyThirdPerson() && !thirdPerson) return;
-
-        // 计算delta time，用于平滑运动
-        long currentTime = System.nanoTime();
-        double deltaTime = (currentTime - lastFrameTime) / 1_000_000_000.0; // 转换为秒
-        lastFrameTime = currentTime;
-
-        // 限制deltaTime，防止帧率过低时摄像机移动过大
-        deltaTime = MathHelper.clamp(deltaTime, 0.001, 0.05);
-
-        // 基础位置：玩家位置加上高度偏移
-        Vec3d basePos = new Vec3d(
-                player.getX(),
-                player.getY() + CAMERA_HEIGHT_OFFSET,
-                player.getZ()
-        );
-
-        // 初始化摄像机位置
-        if (currentPos.equals(Vec3d.ZERO)) {
-            double x = -Math.sin(Math.toRadians(player.getYaw())) * DEFAULT_THIRD_PERSON_DISTANCE;
-            double z = Math.cos(Math.toRadians(player.getYaw())) * DEFAULT_THIRD_PERSON_DISTANCE;
-            currentPos = basePos.add(x, 0, z);
-            lastPlayerVelocity = player.getVelocity();
-            cameraVelocity = Vec3d.ZERO;
+    @Inject(method = "update", at = @At("RETURN"))
+    private void smoothCameraPosition(World area, Entity focusedEntity, boolean thirdPerson, boolean inverseView,
+                                      float tickProgress, CallbackInfo ci) {
+        if (!MotionCamera.isEnabled()
+                || focusedEntity != MinecraftClient.getInstance().player
+                || (MotionCamera.onlyThirdPerson.getValue() && !thirdPerson)) {
+            smoothedPos = null;
+            springVelocity = Vec3d.ZERO;
+            lastFrameTime = 0;
             return;
         }
 
-        Vec3d playerVelocity = player.getVelocity();
-        double velocityMagnitude = playerVelocity.horizontalLength();
+        Vec3d target = this.pos;
 
-        // 判断是否需要返回默认位置
-        if (velocityMagnitude < RETURN_THRESHOLD) {
-            isReturning = true;
+        // 帧时间（秒），限制上限防掉帧时瞬移
+        long now = System.nanoTime();
+        if (lastFrameTime == 0 || smoothedPos == null) {
+            lastFrameTime = now;
+            smoothedPos = target;
+            springVelocity = Vec3d.ZERO;
+            return;
+        }
+        double dt = Math.min(0.1, (now - lastFrameTime) / 1.0e9);
+        lastFrameTime = now;
+
+        if (MotionCamera.mode.is("Classic")) {
+            smoothedPos = classicFollow(target, dt);
         } else {
-            isReturning = false;
-            lastPlayerVelocity = playerVelocity;
+            smoothedPos = bounceFollow(target, dt);
         }
 
-        Vec3d targetPos;
-        double smoothingFactor;
-
-        if (isReturning) {
-            // 返回默认位置
-            double x = -Math.sin(Math.toRadians(player.getYaw())) * DEFAULT_THIRD_PERSON_DISTANCE;
-            double z = Math.cos(Math.toRadians(player.getYaw())) * DEFAULT_THIRD_PERSON_DISTANCE;
-            targetPos = basePos.add(x, 0, z);
-            smoothingFactor = 2.5; // 返回时的平滑系数
-        } else {
-            // 根据玩家速度计算偏移
-            double offset = MotionCamera.getOffset();
-            double maxOffset = MotionCamera.getMaxOffset();
-
-            // 使用二次函数使加速更自然
-            double motionOffset = Math.min(velocityMagnitude * velocityMagnitude * offset, maxOffset);
-
-            // 计算目标位置，考虑玩家朝向和速度方向
-            double yaw = player.getYaw();
-
-            // 混合玩家朝向和移动方向，使摄像机更自然地跟随
-            if (velocityMagnitude > 0.1) {
-                double moveAngle = Math.toDegrees(Math.atan2(-playerVelocity.x, playerVelocity.z));
-                // 权重混合，速度越大，移动方向的权重越高
-                double blendFactor = Math.min(velocityMagnitude * 0.5, 0.7);
-                yaw = MathHelper.lerpAngleDegrees((float)blendFactor, yaw, (float)moveAngle);
-            }
-
-            double x = -Math.sin(Math.toRadians(yaw)) * (DEFAULT_THIRD_PERSON_DISTANCE + motionOffset);
-            double z = Math.cos(Math.toRadians(yaw)) * (DEFAULT_THIRD_PERSON_DISTANCE + motionOffset);
-
-            // 添加垂直方向的偏移，根据玩家垂直速度
-            double verticalOffset = playerVelocity.y * 0.5;
-
-            targetPos = basePos.add(x, verticalOffset, z);
-            smoothingFactor = 4.0 + velocityMagnitude * 2.0; // 根据速度调整平滑系数
-        }
-
-        if (MotionCamera.isSmooth()) {
-            // 使用物理模拟的平滑移动
-            currentPos = physicsBasedSmoothing(currentPos, targetPos, cameraVelocity, smoothingFactor, deltaTime);
-        } else {
-            currentPos = targetPos;
-            cameraVelocity = Vec3d.ZERO;
-        }
-
-        this.setPos(currentPos.x, currentPos.y, currentPos.z);
+        this.pos = smoothedPos;
     }
 
-    private Vec3d physicsBasedSmoothing(Vec3d current, Vec3d target, Vec3d velocity, double smoothingFactor, double deltaTime) {
-        // 弹簧-阻尼系统模拟
-        double springConstant = smoothingFactor * 10.0;
-        double dampingFactor = smoothingFactor * 1.2;
+    /** Classic：每轴独立插值跟随，speed 为 60fps 基准的每帧比例，按帧时间归一 */
+    @Unique
+    private Vec3d classicFollow(Vec3d target, double dt) {
+        double frames = dt * 60.0;
+        double fx = followFactor(MotionCamera.speedX.getValue(), frames);
+        double fy = followFactor(MotionCamera.speedY.getValue(), frames);
+        double fz = followFactor(MotionCamera.speedZ.getValue(), frames);
 
-        // 计算弹簧力 (基于距离)
-        Vec3d displacement = target.subtract(current);
-        Vec3d springForce = displacement.multiply(springConstant);
+        return new Vec3d(
+            smoothedPos.x + (target.x - smoothedPos.x) * fx,
+            smoothedPos.y + (target.y - smoothedPos.y) * fy,
+            smoothedPos.z + (target.z - smoothedPos.z) * fz
+        );
+    }
 
-        // 计算阻尼力 (基于速度)
-        Vec3d dampingForce = velocity.multiply(-dampingFactor);
+    @Unique
+    private double followFactor(double speedPerFrame, double frames) {
+        return 1.0 - Math.pow(1.0 - speedPerFrame, frames);
+    }
 
-        // 合力
-        Vec3d totalForce = springForce.add(dampingForce);
+    /** Bounce：弹簧物理，欠阻尼时转向会过冲回弹 */
+    @Unique
+    private Vec3d bounceFollow(Vec3d target, double dt) {
+        double k = MotionCamera.stiffness.getValue();
+        double d = MotionCamera.damping.getValue();
 
-        // 更新速度 (F = ma, 假设质量为1)
-        Vec3d acceleration = totalForce;
-        Vec3d newVelocity = velocity.add(acceleration.multiply(deltaTime));
+        Vec3d accel = target.subtract(smoothedPos).multiply(k);
+        springVelocity = springVelocity.add(accel.multiply(dt));
+        springVelocity = springVelocity.multiply(Math.exp(-d * dt));
+        Vec3d newPos = smoothedPos.add(springVelocity.multiply(dt));
 
-        // 限制最大速度，防止过冲
-        double maxSpeed = 20.0;
-        if (newVelocity.lengthSquared() > maxSpeed * maxSpeed) {
-            newVelocity = newVelocity.normalize().multiply(maxSpeed);
+        // 限制最大滞后距离，防止跑图时相机被甩太远
+        double maxDist = MotionCamera.maxDistance.getValue();
+        double dist = newPos.distanceTo(target);
+        if (dist > maxDist) {
+            newPos = target.add(newPos.subtract(target).normalize().multiply(maxDist));
         }
-
-        // 更新位置
-        Vec3d newPosition = current.add(newVelocity.multiply(deltaTime));
-
-        // 更新全局速度变量
-        cameraVelocity = newVelocity;
-
-        return newPosition;
+        return newPos;
     }
 }
