@@ -24,6 +24,7 @@ public final class ModuleManager {
         addModule(new HUD());
         addModule(new ClickGui());
         addModule(new AutoClicker());
+        addModule(new TriggerBot());
         addModule(new FastPlace());
         addModule(new Timer());
         addModule(new Speed());
@@ -47,6 +48,30 @@ public final class ModuleManager {
         addModule(new Scaffold());
         addModule(new SafeWalk());
         addModule(new GuiMove());
+        addModule(new Stasis());
+        addModule(new IRC());
+        addModule(new Nametags());
+        addModule(new BackTrack());
+        addModule(new LagRange());
+        addModule(new NoJumpDelay());
+        addModule(new AutoBlock());
+        addModule(new Reach());
+        addModule(new MusicPlayer());
+        addModule(new NoSlowDown());
+        addModule(new AntiBot());
+        addModule(new TickBase());
+        addModule(new TargetStrafe());
+        addModule(new AutoGap());
+        addModule(new Animation());
+        addModule(new CrystalAura());
+        addModule(new Elytra());
+        addModule(new TpAura());
+        addModule(new FullBright());
+        addModule(new AntiCheat());
+        addModule(new Displace());
+        addModule(new Phase());
+        addModule(new GhostHand());
+        addModule(new Strafe());
     }
 
     private static void addModule(Module module) {

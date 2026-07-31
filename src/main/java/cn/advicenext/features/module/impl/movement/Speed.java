@@ -19,7 +19,7 @@ import java.util.Objects;
 
 public class Speed extends Module {
     private final ModeSetting mode = new ModeSetting("Mode", "Speed", "Speed", List.of("WatchdogHop", "WatchdogLowhop", "NCP", "LegitFast"));
-    private final BooleanSetting withStrafe = new BooleanSetting("WithStrafe", "let you air/ground strafe", false);
+    private final BooleanSetting withStrafe = new BooleanSetting("WithStrafe", "let you air/ground strafe", false,()->mode.is("WatchdogHop"));
 
     // NCP Speed settings
     private final BooleanSetting ncpPullDown = new BooleanSetting("NCP-PullDown", "NCP pull down on air", true,()->mode.is("NCP"));
@@ -40,7 +40,6 @@ public class Speed extends Module {
         this.settings.add(ncpDamageBoost);
         this.settings.add(ncpLowHop);
         this.settings.add(ncpAirStrafe);
-        this.enabled = false;
     }
 
     int airTicks = 0;

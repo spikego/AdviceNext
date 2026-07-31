@@ -1,153 +1,305 @@
 package cn.advicenext.utility.client.render;
 
+import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.systems.RenderSystem;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.util.math.MathHelper;
-import org.joml.Matrix4f;
-import java.awt.Color;
+import net.minecraft.client.gl.RenderPipelines;
+import net.minecraft.client.gui.ScreenRect;
+import net.minecraft.client.gui.render.state.GuiRenderState;
+import net.minecraft.client.gui.render.state.SimpleGuiElementRenderState;
+import net.minecraft.client.render.VertexConsumer;
+import net.minecraft.client.texture.TextureSetup;
+import org.joml.Matrix3x2f;
+import org.joml.Matrix3x2fc;
 
-public class RenderUtils {
-    
-    public static void drawRoundedRect(DrawContext context, float x, float y, float width, float height, 
-                                      float radius, int color) {
-        if (radius <= 0) {
-            context.fill((int)x, (int)y, (int)(x + width), (int)(y + height), color);
-            return;
-        }
-        
-        radius = Math.min(radius, Math.min(width, height) / 2);
-        
-        int ix = (int) x;
-        int iy = (int) y;
-        int iw = (int) width;
-        int ih = (int) height;
-        int ir = (int) radius;
-        int argb = color;
-        
-        // Main body
-        context.fill(ix + ir, iy, ix + iw - ir, iy + ih, argb);
-        // Left and right sides
-        context.fill(ix, iy + ir, ix + ir, iy + ih - ir, argb);
-        context.fill(ix + iw - ir, iy + ir, ix + iw, iy + ih - ir, argb);
-        
-        // Four corners
-        fillCircleQuarter(context, ix + ir, iy + ir, ir, 0, argb);
-        fillCircleQuarter(context, ix + iw - ir, iy + ir, ir, 1, argb);
-        fillCircleQuarter(context, ix + ir, iy + ih - ir, ir, 2, argb);
-        fillCircleQuarter(context, ix + iw - ir, iy + ih - ir, ir, 3, argb);
+/**
+ * 2D GUI 渲染工具——矩形、渐变、圆角矩形、圆形、边框。
+ * 全部通过 {@link SimpleGuiElementRenderState} 提交到 GUI 延迟渲染管线。
+ * 调用前需 {@link #setRenderState(GuiRenderState, Matrix3x2fc)} 设置当前帧状态。
+ */
+public final class RenderUtils {
+
+    private RenderUtils() {}
+
+    // ==================== 静态渲染上下文 ====================
+
+    private static GuiRenderState currentState = null;
+    private static Matrix3x2fc currentPose = new Matrix3x2f();
+
+    /**
+     * 每帧渲染前调用。
+     * 调用方：HUD/Render2DEvent 监听器
+     * {@code RenderUtils.setRenderState(event.getContext().state, event.getContext().getMatrices())}
+     */
+    public static void setRenderState(GuiRenderState state, Matrix3x2fc pose) {
+        currentState = state;
+        currentPose = pose;
     }
-    
-    private static void fillCircleQuarter(DrawContext context, int cx, int cy, int radius, int quarter, int color) {
-        for (int i = 0; i <= radius; i++) {
-            for (int j = 0; j <= radius; j++) {
-                if (i * i + j * j <= radius * radius) {
-                    int dx = 0, dy = 0;
-                    switch (quarter) {
-                        case 0: dx = -i; dy = -j; break;
-                        case 1: dx = i; dy = -j; break;
-                        case 2: dx = -i; dy = j; break;
-                        case 3: dx = i; dy = j; break;
-                    }
-                    context.fill(cx + dx, cy + dy, cx + dx + 1, cy + dy + 1, color);
+
+    // ==================== 颜色工具 ====================
+
+    public static int packARGB(float a, float r, float g, float b) {
+        return ((int)(a * 255) << 24) | ((int)(r * 255) << 16) | ((int)(g * 255) << 8) | (int)(b * 255);
+    }
+
+    public static int packARGB(int a, int r, int g, int b) {
+        return (a << 24) | (r << 16) | (g << 8) | b;
+    }
+
+    // ==================== 基础矩形 ====================
+
+    /** 纯色矩形 */
+    public static void drawRect(float x, float y, float w, float h, int color) {
+        drawRectInternal(x, y, x + w, y + h, color, color, color, color);
+    }
+
+    /** 4 角渐变矩形（左上、右上、左下、右下） */
+    public static void drawGradientRect(float x, float y, float w, float h, int tl, int tr, int bl, int br) {
+        drawRectInternal(x, y, x + w, y + h, tl, tr, bl, br);
+    }
+
+    /** 垂直渐变矩形（上 → 下） */
+    public static void drawGradientVertical(float x, float y, float w, float h, int top, int bottom) {
+        drawRectInternal(x, y, x + w, y + h, top, top, bottom, bottom);
+    }
+
+    /** 水平渐变矩形（左 → 右） */
+    public static void drawGradientHorizontal(float x, float y, float w, float h, int left, int right) {
+        drawRectInternal(x, y, x + w, y + h, left, right, left, right);
+    }
+
+    // ==================== 圆角矩形（三角形逼近） ====================
+
+    /**
+     * 圆角矩形。用三角形逼近圆弧边缘。
+     * @param segments 每个角的三角形段数（越大越圆滑，4-16 之间）
+     */
+    public static void drawRoundedRect(float x, float y, float w, float h, float radius, int color, int segments) {
+        if (radius <= 0) { drawRect(x, y, w, h, color); return; }
+        radius = Math.min(radius, Math.min(w, h) / 2);
+        segments = Math.max(4, Math.min(24, segments));
+
+        // 5 个不重叠的矩形部分
+        drawRect(x + radius, y, w - 2 * radius, radius, color);              // 上边
+        drawRect(x + radius, y + h - radius, w - 2 * radius, radius, color);  // 下边
+        drawRect(x, y + radius, radius, h - 2 * radius, color);              // 左边
+        drawRect(x + w - radius, y + radius, radius, h - 2 * radius, color);  // 右边
+        drawRect(x + radius, y + radius, w - 2 * radius, h - 2 * radius, color); // 中心
+
+        // 4 个角（三角形扇逼近）
+        drawCornerArc(x + radius, y + radius, radius, 180, 270, color, segments);
+        drawCornerArc(x + w - radius, y + radius, radius, 270, 360, color, segments);
+        drawCornerArc(x + radius, y + h - radius, radius, 90, 180, color, segments);
+        drawCornerArc(x + w - radius, y + h - radius, radius, 0, 90, color, segments);
+    }
+
+    /** 圆角矩形（默认 16 段） */
+    public static void drawRoundedRect(float x, float y, float w, float h, float radius, int color) {
+        drawRoundedRect(x, y, w, h, radius, color, 16);
+    }
+
+    // ==================== 边框 ====================
+
+    /** 矩形边框 */
+    public static void drawBorder(float x, float y, float w, float h, float thickness, int color) {
+        drawRect(x, y, w, thickness, color);
+        drawRect(x, y + h - thickness, w, thickness, color);
+        drawRect(x, y + thickness, thickness, h - 2 * thickness, color);
+        drawRect(x + w - thickness, y + thickness, thickness, h - 2 * thickness, color);
+    }
+
+    /** 圆角矩形边框（外圆角 - 内圆角） */
+    public static void drawRoundedBorder(float x, float y, float w, float h, float radius, float thickness, int color, int segments) {
+        // 外圆角
+        drawRoundedRect(x, y, w, h, radius, color, segments);
+        // 用背景色覆盖内部（调用方需要自己处理背景色，这里用透明色表示只画边框）
+        // 更好的方式：用 SDF 或两次绘制。简化版：直接画外边框线
+        drawBorder(x, y, w, h, thickness, color);
+    }
+
+    // ==================== 圆形 ====================
+
+    /**
+     * 填充圆（三角形扇逼近）
+     */
+    public static void drawCircle(float cx, float cy, float radius, int color, int segments) {
+        segments = Math.max(8, Math.min(32, segments));
+        drawFilledArc(cx, cy, radius, 0, 360, color, segments);
+    }
+
+    /**
+     * 圆环
+     */
+    public static void drawCircleOutline(float cx, float cy, float radius, float thickness, int color, int segments) {
+        segments = Math.max(8, Math.min(32, segments));
+        float inner = radius - thickness;
+        if (inner <= 0) { drawCircle(cx, cy, radius, color, segments); return; }
+
+        // 外圆 - 内圆 = 圆环（用多个梯形逼近）
+        int finalSegments = segments;
+        submitElements(segments * 2, vertices -> {
+            for (int i = 0; i < finalSegments; i++) {
+                float a1 = (float) (2 * Math.PI * i / finalSegments);
+                float a2 = (float) (2 * Math.PI * (i + 1) / finalSegments);
+
+                float ox1 = cx + (float) Math.cos(a1) * radius;
+                float oy1 = cy + (float) Math.sin(a1) * radius;
+                float ox2 = cx + (float) Math.cos(a2) * radius;
+                float oy2 = cy + (float) Math.sin(a2) * radius;
+                float ix1 = cx + (float) Math.cos(a1) * inner;
+                float iy1 = cy + (float) Math.sin(a1) * inner;
+                float ix2 = cx + (float) Math.cos(a2) * inner;
+                float iy2 = cy + (float) Math.sin(a2) * inner;
+
+                // 外三角形
+                vertices.vertex(currentPose, ox1, oy1).color(color);
+                vertices.vertex(currentPose, ox2, oy2).color(color);
+                vertices.vertex(currentPose, ix2, iy2).color(color);
+                // 内三角形
+                vertices.vertex(currentPose, ox1, oy1).color(color);
+                vertices.vertex(currentPose, ix2, iy2).color(color);
+                vertices.vertex(currentPose, ix1, iy1).color(color);
+            }
+        });
+    }
+
+    // ==================== 内部实现 ====================
+
+    /** 4 角渐变矩形核心实现 */
+    private static void drawRectInternal(float x1, float y1, float x2, float y2,
+                                          int tl, int tr, int bl, int br) {
+        if (currentState == null) return;
+        RenderSystem.assertOnRenderThread();
+
+        int bx = (int) Math.floor(Math.min(x1, x2));
+        int by = (int) Math.floor(Math.min(y1, y2));
+        int bw = (int) Math.ceil(Math.abs(x2 - x1));
+        int bh = (int) Math.ceil(Math.abs(y2 - y1));
+        ScreenRect bounds = new ScreenRect(bx, by, Math.max(bw, 1), Math.max(bh, 1));
+
+        currentState.addPreparedTextElement(new SimpleGuiElementRenderState() {
+            @Override
+            public void setupVertices(VertexConsumer vertices) {
+                vertices.vertex(currentPose, x1, y1).color(tl);
+                vertices.vertex(currentPose, x1, y2).color(bl);
+                vertices.vertex(currentPose, x2, y2).color(br);
+                vertices.vertex(currentPose, x2, y1).color(tr);
+            }
+
+            @Override public RenderPipeline pipeline() { return RenderPipelines.GUI; }
+            @Override public TextureSetup textureSetup() { return TextureSetup.empty(); }
+            @Override public ScreenRect scissorArea() { return null; }
+            @Override public ScreenRect bounds() { return bounds; }
+        });
+    }
+
+    /** 圆弧三角形扇（用于圆角矩形和圆形） */
+    private static void drawCornerArc(float cx, float cy, float radius,
+                                        float startDeg, float endDeg, int color, int segments) {
+        if (currentState == null) return;
+        RenderSystem.assertOnRenderThread();
+
+        int bx = (int) Math.floor(cx - radius);
+        int by = (int) Math.floor(cy - radius);
+        int bs = (int) Math.ceil(radius * 2);
+        ScreenRect bounds = new ScreenRect(bx, by, Math.max(bs, 1), Math.max(bs, 1));
+
+        currentState.addPreparedTextElement(new SimpleGuiElementRenderState() {
+            @Override
+            public void setupVertices(VertexConsumer vertices) {
+                float startRad = (float) Math.toRadians(startDeg);
+                float endRad = (float) Math.toRadians(endDeg);
+
+                for (int i = 0; i < segments; i++) {
+                    float a1 = startRad + (endRad - startRad) * i / segments;
+                    float a2 = startRad + (endRad - startRad) * (i + 1) / segments;
+
+                    float x1 = cx + (float) Math.cos(a1) * radius;
+                    float y1 = cy + (float) Math.sin(a1) * radius;
+                    float x2 = cx + (float) Math.cos(a2) * radius;
+                    float y2 = cy + (float) Math.sin(a2) * radius;
+
+                    vertices.vertex(currentPose, cx, cy).color(color);
+                    vertices.vertex(currentPose, x1, y1).color(color);
+                    vertices.vertex(currentPose, x2, y2).color(color);
                 }
             }
-        }
+
+            @Override public RenderPipeline pipeline() { return RenderPipelines.GUI; }
+            @Override public TextureSetup textureSetup() { return TextureSetup.empty(); }
+            @Override public ScreenRect scissorArea() { return null; }
+            @Override public ScreenRect bounds() { return bounds; }
+        });
     }
-    
-    public static void drawRoundedBorder(DrawContext context, float x, float y, float width, float height,
-                                        float radius, float borderWidth, int borderColor) {
-        if (radius <= 0) {
-            int bw = (int) borderWidth;
-            context.fill((int)x, (int)y, (int)(x + width), (int)(y + bw), borderColor);
-            context.fill((int)x, (int)(y + height - bw), (int)(x + width), (int)(y + height), borderColor);
-            context.fill((int)x, (int)(y + bw), (int)(x + bw), (int)(y + height - bw), borderColor);
-            context.fill((int)(x + width - bw), (int)(y + bw), (int)(x + width), (int)(y + height - bw), borderColor);
-            return;
-        }
-        
-        radius = Math.min(radius, Math.min(width, height) / 2);
-        float innerRadius = Math.max(0, radius - borderWidth);
-        
-        int ix = (int) x;
-        int iy = (int) y;
-        int iw = (int) width;
-        int ih = (int) height;
-        int ir = (int) radius;
-        int iir = (int) innerRadius;
-        int bw = (int) borderWidth;
-        int argb = borderColor;
-        
-        // Top and bottom borders
-        context.fill(ix + ir, iy, ix + iw - ir, iy + bw, argb);
-        context.fill(ix + ir, iy + ih - bw, ix + iw - ir, iy + ih, argb);
-        
-        // Left and right borders
-        context.fill(ix, iy + ir, ix + bw, iy + ih - ir, argb);
-        context.fill(ix + iw - bw, iy + ir, ix + iw, iy + ih - ir, argb);
-        
-        // Corner borders
-        fillCircleQuarterBorder(context, ix + ir, iy + ir, ir, iir, 0, argb);
-        fillCircleQuarterBorder(context, ix + iw - ir, iy + ir, ir, iir, 1, argb);
-        fillCircleQuarterBorder(context, ix + ir, iy + ih - ir, ir, iir, 2, argb);
-        fillCircleQuarterBorder(context, ix + iw - ir, iy + ih - ir, ir, iir, 3, argb);
-    }
-    
-    private static void fillCircleQuarterBorder(DrawContext context, int cx, int cy, int outerRadius, int innerRadius, int quarter, int color) {
-        for (int i = 0; i <= outerRadius; i++) {
-            for (int j = 0; j <= outerRadius; j++) {
-                int dist = i * i + j * j;
-                if (dist <= outerRadius * outerRadius && dist >= innerRadius * innerRadius) {
-                    int dx = 0, dy = 0;
-                    switch (quarter) {
-                        case 0: dx = -i; dy = -j; break;
-                        case 1: dx = i; dy = -j; break;
-                        case 2: dx = -i; dy = j; break;
-                        case 3: dx = i; dy = j; break;
-                    }
-                    context.fill(cx + dx, cy + dy, cx + dx + 1, cy + dy + 1, color);
+
+    /** 填充圆弧（用于圆形） */
+    private static void drawFilledArc(float cx, float cy, float radius,
+                                       float startDeg, float endDeg, int color, int segments) {
+        if (currentState == null) return;
+        RenderSystem.assertOnRenderThread();
+
+        int bx = (int) Math.floor(cx - radius);
+        int by = (int) Math.floor(cy - radius);
+        int bs = (int) Math.ceil(radius * 2);
+        ScreenRect bounds = new ScreenRect(bx, by, Math.max(bs, 1), Math.max(bs, 1));
+
+        currentState.addPreparedTextElement(new SimpleGuiElementRenderState() {
+            @Override
+            public void setupVertices(VertexConsumer vertices) {
+                float startRad = (float) Math.toRadians(startDeg);
+                float endRad = (float) Math.toRadians(endDeg);
+
+                for (int i = 0; i < segments; i++) {
+                    float a1 = startRad + (endRad - startRad) * i / segments;
+                    float a2 = startRad + (endRad - startRad) * (i + 1) / segments;
+
+                    float x1 = cx + (float) Math.cos(a1) * radius;
+                    float y1 = cy + (float) Math.sin(a1) * radius;
+                    float x2 = cx + (float) Math.cos(a2) * radius;
+                    float y2 = cy + (float) Math.sin(a2) * radius;
+
+                    vertices.vertex(currentPose, cx, cy).color(color);
+                    vertices.vertex(currentPose, x1, y1).color(color);
+                    vertices.vertex(currentPose, x2, y2).color(color);
                 }
             }
-        }
+
+            @Override public RenderPipeline pipeline() { return RenderPipelines.GUI; }
+            @Override public TextureSetup textureSetup() { return TextureSetup.empty(); }
+            @Override public ScreenRect scissorArea() { return null; }
+            @Override public ScreenRect bounds() { return bounds; }
+        });
     }
-    
-    public static void drawBlurredBackground(DrawContext context, float x, float y, float width, float height,
-                                            float radius, int backgroundColor) {
-        drawRoundedRect(context, x, y, width, height, radius, backgroundColor);
-    }
-    
-    public static void drawGradientRect(DrawContext context, float x, float y, float width, float height,
-                                       Color startColor, Color endColor, boolean vertical) {
-        int steps = vertical ? (int) height : (int) width;
-        for (int i = 0; i < steps; i++) {
-            float progress = (float) i / steps;
-            int r = (int) (startColor.getRed() * (1 - progress) + endColor.getRed() * progress);
-            int g = (int) (startColor.getGreen() * (1 - progress) + endColor.getGreen() * progress);
-            int b = (int) (startColor.getBlue() * (1 - progress) + endColor.getBlue() * progress);
-            int a = (int) (startColor.getAlpha() * (1 - progress) + endColor.getAlpha() * progress);
-            int color = (a << 24) | (r << 16) | (g << 8) | b;
-            
-            if (vertical) {
-                context.fill((int)x, (int)(y + i), (int)(x + width), (int)(y + i + 1), color);
-            } else {
-                context.fill((int)(x + i), (int)y, (int)(x + i + 1), (int)(y + height), color);
+
+    /** 通用元素提交（用于自定义顶点生成） */
+    private static void submitElements(int estimatedQuads, VertexWriter writer) {
+        if (currentState == null) return;
+        RenderSystem.assertOnRenderThread();
+
+        ScreenRect bounds = new ScreenRect(0, 0, mc_window_width(), mc_window_height());
+
+        currentState.addPreparedTextElement(new SimpleGuiElementRenderState() {
+            @Override
+            public void setupVertices(VertexConsumer vertices) {
+                writer.write(vertices);
             }
-        }
+
+            @Override public RenderPipeline pipeline() { return RenderPipelines.GUI; }
+            @Override public TextureSetup textureSetup() { return TextureSetup.empty(); }
+            @Override public ScreenRect scissorArea() { return null; }
+            @Override public ScreenRect bounds() { return bounds; }
+        });
     }
-    
-    public static void drawBorder(DrawContext context, float x, float y, float width, float height,
-                                 float radius, int borderColor, float borderWidth) {
-        drawRoundedBorder(context, x, y, width, height, radius, borderWidth, borderColor);
+
+    @FunctionalInterface
+    private interface VertexWriter {
+        void write(VertexConsumer vertices);
     }
-    
-    public static void drawShadow(DrawContext context, float x, float y, float width, float height,
-                                 float radius, int shadowColor, float shadowSize) {
-        for (int i = (int)shadowSize; i > 0; i--) {
-            int alpha = (int)((float)i / shadowSize * 50);
-            int color = (alpha << 24) | (shadowColor & 0x00FFFFFF);
-            drawRoundedRect(context, x - i, y - i, width + i * 2, height + i * 2,
-                           radius + i, color);
-        }
+
+    private static int mc_window_width() {
+        return net.minecraft.client.MinecraftClient.getInstance().getWindow().getScaledWidth();
+    }
+
+    private static int mc_window_height() {
+        return net.minecraft.client.MinecraftClient.getInstance().getWindow().getScaledHeight();
     }
 }

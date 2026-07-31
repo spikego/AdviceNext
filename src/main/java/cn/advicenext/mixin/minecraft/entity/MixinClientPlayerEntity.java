@@ -1,12 +1,17 @@
 package cn.advicenext.mixin.minecraft.entity;
 
+import cn.advicenext.event.EventBus;
+import cn.advicenext.event.impl.MovementEvent;
 import cn.advicenext.utility.minecraft.movement.MovementCorrection;
 import cn.advicenext.utility.minecraft.player.RotationManager;
 import cn.advicenext.utility.minecraft.player.RotationUtils;
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
+import net.minecraft.client.input.Input;
 import net.minecraft.client.network.ClientPlayerEntity;
+import net.minecraft.util.PlayerInput;
 import net.minecraft.util.math.Vec3d;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -15,11 +20,42 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(ClientPlayerEntity.class)
 public abstract class MixinClientPlayerEntity {
 
+    @Shadow
+    public Input input;
+
     @Unique
     private float visualYaw;
 
     @Unique
     private float visualPitch;
+
+    // ==================== MovementEvent：拦截玩家输入 ====================
+
+    @Inject(method = "tickMovement", at = @At("HEAD"))
+    private void onPreMovement(CallbackInfo ci) {
+        if (input == null || input.playerInput == null) return;
+        PlayerInput pi = input.playerInput;
+
+        float forward = (pi.forward() ? 1.0F : 0.0F) - (pi.backward() ? 1.0F : 0.0F);
+        float strafe = (pi.left() ? 1.0F : 0.0F) - (pi.right() ? 1.0F : 0.0F);
+
+        MovementEvent event = new MovementEvent(forward, strafe, pi.sneak(), pi.jump());
+        EventBus.post(event);
+
+        boolean changed = false;
+        float newForward = event.getForward();
+        float newStrafe = event.getStrafe();
+        boolean newSneak = event.isSneak();
+        boolean newJump = event.isJump();
+
+        if (newForward != forward || newStrafe != strafe || newSneak != pi.sneak() || newJump != pi.jump()) {
+            input.playerInput = new PlayerInput(
+                newForward > 0, newForward < 0,
+                newStrafe > 0, newStrafe < 0,
+                newJump, newSneak, pi.sprint()
+            );
+        }
+    }
 
     // ==================== RotationManager 覆盖旋转 ====================
 
@@ -67,17 +103,18 @@ public abstract class MixinClientPlayerEntity {
     /**
      * 服务器视角前进时自动疾跑：vanilla 只在按下 sprint 键时启动疾跑。
      * 移动修正激活时，输入已被旋转到服务器视角，canStartSprinting() 中的
-     * hasForwardMovement() 判断的就是"服务器视角是否前进"。此处把 sprint 键
-     * 条件放宽——只要修正在服务器视角下构成前进移动，即视为冲刺意图，
-     * 其余合法性检查（饥饿、失明、使用物品减速等）全部保留 vanilla 逻辑。
+     * hasForwardMovement() 判断的就是"服务器视角是否前进"。此处放宽条件，
+     * 只要修正激活且有前进输入，就允许启动疾跑。
      */
     @ModifyExpressionValue(
-            method = "tickMovement",
-            at = @At(value = "INVOKE", target = "Lnet/minecraft/util/PlayerInput;sprint()Z")
+            method = "canStartSprinting",
+            at = @At(value = "INVOKE", target = "Lnet/minecraft/client/network/ClientPlayerEntity;isBlockedFromSprinting()Z")
     )
-    private boolean hookSprintKeyForCorrection(boolean original) {
-        if (original) return true;
-        return MovementCorrection.isActive();
+    private boolean hookSprintBlockForCorrection(boolean original) {
+        if (MovementCorrection.isActive()) {
+            return false;
+        }
+        return original;
     }
 
     // ==================== AntiAim 速度控制 ====================
@@ -111,5 +148,39 @@ public abstract class MixinClientPlayerEntity {
             double scale = maxSpeed / hSpeed;
             player.setVelocity(v.x * scale, v.y, v.z * scale);
         }
+    }
+
+    // ==================== NoSlowDown：取消使用物品减速 ====================
+
+    /**
+     * 取消物品使用时的移动减速：
+     * 1.21.1 中减速在 applyMovementSpeedFactors() 中通过 isUsingItem() 检查实现。
+     * 当 NoSlowDown.slowDownCancelled 为 true 时，让 isUsingItem() 返回 false，阻止减速。
+     */
+    @ModifyExpressionValue(
+            method = "applyMovementSpeedFactors",
+            at = @At(value = "INVOKE", target = "Lnet/minecraft/client/network/ClientPlayerEntity;isUsingItem()Z")
+    )
+    private boolean hookSlowDownIsUsingItem(boolean original) {
+        if (cn.advicenext.features.module.impl.movement.NoSlowDown.slowDownCancelled) {
+            return false;
+        }
+        return original;
+    }
+
+    /**
+     * 取消物品使用时的冲刺阻止：
+     * 1.21.1 中 isBlockedFromSprinting() 检查 isUsingItem() 来决定是否阻止冲刺。
+     * 当 NoSlowDown.slowDownCancelled 为 true 时，让 isBlockedFromSprinting() 返回 false。
+     */
+    @ModifyExpressionValue(
+            method = "isBlockedFromSprinting",
+            at = @At(value = "INVOKE", target = "Lnet/minecraft/client/network/ClientPlayerEntity;isUsingItem()Z")
+    )
+    private boolean hookSprintBlockIsUsingItem(boolean original) {
+        if (cn.advicenext.features.module.impl.movement.NoSlowDown.slowDownCancelled) {
+            return false;
+        }
+        return original;
     }
 }

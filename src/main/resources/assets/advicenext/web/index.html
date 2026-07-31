@@ -22,6 +22,7 @@
             <button class="tab-btn" data-tab="game">Game Control</button>
             <button class="tab-btn" data-tab="players">Players</button>
             <button class="tab-btn" data-tab="chat">Chat</button>
+            <button class="tab-btn" data-tab="charts">Charts</button>
             <button class="tab-btn" data-tab="console">Console</button>
         </nav>
 
@@ -37,6 +38,14 @@
                         <h3>Settings</h3>
                         <div id="moduleSettings">Select a module to view settings</div>
                     </div>
+                </div>
+                <div class="config-section">
+                    <h3>Config Management</h3>
+                    <div class="config-actions">
+                        <button class="action-btn" onclick="dashboard.saveConfig()">Save Config</button>
+                        <button class="action-btn" onclick="dashboard.loadConfigs()">Refresh</button>
+                    </div>
+                    <div id="configList" class="config-list"></div>
                 </div>
             </div>
 
@@ -97,6 +106,28 @@
                     <div class="console-input">
                         <input type="text" id="consoleInput" placeholder="Enter command...">
                         <button onclick="dashboard.executeCommand()">Execute</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Tab -->
+            <div class="tab-content" id="charts">
+                <div class="charts-grid">
+                    <div class="chart-card">
+                        <h3>Speed Curve (BPS)</h3>
+                        <canvas id="speedChart" width="580" height="200"></canvas>
+                    </div>
+                    <div class="chart-card">
+                        <h3>Packet Situation</h3>
+                        <canvas id="packetChart" width="580" height="200"></canvas>
+                    </div>
+                    <div class="chart-card">
+                        <h3>Latency Curve (ms)</h3>
+                        <canvas id="latencyChart" width="580" height="200"></canvas>
+                    </div>
+                    <div class="chart-card">
+                        <h3>Rotation Angle</h3>
+                        <canvas id="yawChart" width="580" height="200"></canvas>
                     </div>
                 </div>
             </div>

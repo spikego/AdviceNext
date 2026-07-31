@@ -2,9 +2,12 @@ package cn.advicenext.config;
 
 import cn.advicenext.features.module.Module;
 import cn.advicenext.features.module.ModuleManager;
+import cn.advicenext.features.module.impl.render.HUD;
 import cn.advicenext.features.value.*;
 import cn.advicenext.features.value.slider.*;
 import cn.advicenext.features.notification.NotificationManager;
+import cn.advicenext.gui.hud.widget.Widget;
+import cn.advicenext.gui.hud.widget.WidgetRegistry;
 import com.google.gson.*;
 
 import java.io.*;
@@ -52,12 +55,25 @@ public class ModuleConfig {
                             settingsObj.addProperty(setting.getName(), ((ModeSetting) setting).getValue());
                         } else if (setting instanceof StringSetting) {
                             settingsObj.addProperty(setting.getName(), ((StringSetting) setting).getValue());
+                        } else if (setting instanceof ColorSetting) {
+                            settingsObj.addProperty(setting.getName(), ((ColorSetting) setting).getValue());
                         }
                     }
                     
                     moduleObj.add("settings", settingsObj);
                 }
-                
+
+                if (module instanceof HUD hud) {
+                    JsonObject widgetObj = new JsonObject();
+                    for (cn.advicenext.gui.hud.widget.Widget w : cn.advicenext.gui.hud.widget.WidgetRegistry.getAll()) {
+                        JsonObject pos = new JsonObject();
+                        pos.addProperty("x", w.getX());
+                        pos.addProperty("y", w.getY());
+                        widgetObj.add(w.getId(), pos);
+                    }
+                    moduleObj.add("widgets", widgetObj);
+                }
+
                 root.add(module.getName(), moduleObj);
             }
 
@@ -136,8 +152,34 @@ public class ModuleConfig {
                                     ((ModeSetting) setting).setValue(settingElement.getAsString());
                                 } else if (setting instanceof StringSetting) {
                                     ((StringSetting) setting).setValue(settingElement.getAsString());
+                                } else if (setting instanceof ColorSetting) {
+                                    ((ColorSetting) setting).setValue(settingElement.getAsInt());
                                 }
                             }
+                        }
+                    }
+
+                    if (moduleObj.has("widgets") && moduleObj.get("widgets").isJsonObject() && module instanceof HUD) {
+                        JsonObject widgetObj = moduleObj.getAsJsonObject("widgets");
+                        for (Widget w : WidgetRegistry.getAll()) {
+                            if (widgetObj.has(w.getId())) {
+                                JsonObject pos = widgetObj.getAsJsonObject(w.getId());
+                                w.setPosition(pos.get("x").getAsFloat(), pos.get("y").getAsFloat());
+                            }
+                        }
+                    } else if (moduleObj.has("hud") && moduleObj.get("hud").isJsonObject() && module instanceof HUD) {
+                        JsonObject hudObj = moduleObj.getAsJsonObject("hud");
+                        if (hudObj.has("watermarkX")) {
+                            Widget w = WidgetRegistry.get("watermark");
+                            if (w != null) w.setPosition(hudObj.get("watermarkX").getAsFloat(), hudObj.get("watermarkY").getAsFloat());
+                        }
+                        if (hudObj.has("arrayListX")) {
+                            Widget w = WidgetRegistry.get("arraylist");
+                            if (w != null) w.setPosition(hudObj.get("arrayListX").getAsFloat(), hudObj.get("arrayListY").getAsFloat());
+                        }
+                        if (hudObj.has("targetInfoX")) {
+                            Widget w = WidgetRegistry.get("targetinfo");
+                            if (w != null) w.setPosition(hudObj.get("targetInfoX").getAsFloat(), hudObj.get("targetInfoY").getAsFloat());
                         }
                     }
                 }

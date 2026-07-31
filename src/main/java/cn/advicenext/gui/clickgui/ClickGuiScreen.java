@@ -9,12 +9,14 @@ import cn.advicenext.features.module.ModuleManager;
 import cn.advicenext.features.module.impl.render.ClickGui;
 import cn.advicenext.features.value.AbstractSetting;
 import cn.advicenext.features.value.BooleanSetting;
+import cn.advicenext.features.value.ColorSetting;
 import cn.advicenext.features.value.ModeSetting;
 import cn.advicenext.features.value.StringSetting;
 import cn.advicenext.features.value.slider.NumberSetting;
 import cn.advicenext.features.value.slider.RangeSetting;
 import cn.advicenext.gui.clickgui.animation.AnimationUtil;
 import cn.advicenext.gui.colors.Colors;
+import cn.advicenext.utility.client.render.font.Fonts;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
@@ -122,7 +124,8 @@ public class ClickGuiScreen extends Screen {
         context.fill(guiX, guiY, guiX + sidebarWidth, guiY + guiHeight, sidebarColor.getRGB());
 
         // Draw title
-        context.drawTextWithShadow(mc.textRenderer, "AdviceNext", guiX + 10, guiY + 10, textColor.getRGB());
+        //context.drawTextWithShadow(mc.textRenderer, "AdviceNext", guiX + 10, guiY + 10, textColor.getRGB());
+        Fonts.inter.get(16).drawString("AdviceNext", guiX + 10, guiY + 10, textColor.getRGB());
 
         // Draw animated category indicator
         context.fill(guiX, (int)categoryIndicatorY, guiX + 3, (int)categoryIndicatorY + 20, accentColor.getRGB());
@@ -315,16 +318,23 @@ public class ClickGuiScreen extends Screen {
                 } else if (setting instanceof StringSetting) {
                     StringSetting stringSetting = (StringSetting) setting;
 
-                    // Draw setting background
                     context.fill(settingsX, settingsY, settingsX + settingsWidth, settingsY + 20, moduleColor.getRGB());
-
-                    // Draw setting name
                     context.drawTextWithShadow(mc.textRenderer, setting.getName(), settingsX + 5, settingsY + 6, textColor.getRGB());
 
-                    // Draw current value
                     String value = stringSetting.getValue();
                     int valueWidth = mc.textRenderer.getWidth(value);
                     context.drawTextWithShadow(mc.textRenderer, value, settingsX + settingsWidth - valueWidth - 5, settingsY + 6, accentColor.getRGB());
+
+                } else if (setting instanceof ColorSetting) {
+                    ColorSetting colorSetting = (ColorSetting) setting;
+
+                    context.fill(settingsX, settingsY, settingsX + settingsWidth, settingsY + 20, moduleColor.getRGB());
+                    context.drawTextWithShadow(mc.textRenderer, setting.getName(), settingsX + 5, settingsY + 6, textColor.getRGB());
+
+                    int colorBoxSize = 12;
+                    int cbx = settingsX + settingsWidth - colorBoxSize - 8;
+                    int cby = settingsY + 4;
+                    context.fill(cbx, cby, cbx + colorBoxSize, cby + colorBoxSize, colorSetting.getValue());
                 }
 
                 settingsY += 25;

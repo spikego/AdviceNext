@@ -11,6 +11,7 @@ class DebugDashboard {
         this.startUpdates();
         this.loadModules();
         this.loadPlayers();
+        this.loadConfigs();
         this.setupMinimap();
     }
 
@@ -54,6 +55,17 @@ class DebugDashboard {
             btn.addEventListener('mouseup', () => {
                 this.stopMovement(btn.dataset.action);
             });
+            btn.addEventListener('mouseleave', () => {
+                this.stopMovement(btn.dataset.action);
+            });
+            btn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                this.startMovement(btn.dataset.action);
+            });
+            btn.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                this.stopMovement(btn.dataset.action);
+            });
         });
     }
 
@@ -63,6 +75,7 @@ class DebugDashboard {
             this.updateConsole();
             this.updateChat();
             this.updatePlayers();
+            this.updateCharts();
         }, 1000);
     }
 
@@ -393,6 +406,310 @@ class DebugDashboard {
         }
     }
 
+    async loadConfigs() {
+        try {
+            const response = await fetch('/api/configs');
+            const data = await response.json();
+            const configList = document.getElementById('configList');
+            if (!configList) return;
+            configList.innerHTML = '';
+            data.configs.forEach(config => {
+                const item = document.createElement('div');
+                item.className = 'config-item';
+                item.innerHTML = `
+                    <span class="config-name">${config.name}</span>
+                    <button class="action-btn" onclick="dashboard.loadConfig('${config.name}')">Load</button>
+                `;
+                configList.appendChild(item);
+            });
+        } catch (error) {
+            console.error('Failed to load configs:', error);
+        }
+    }
+
+    async saveConfig() {
+        const name = prompt('Enter config name:');
+        if (!name) return;
+        try {
+            await fetch('/api/config/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name })
+            });
+            this.loadConfigs();
+        } catch (error) {
+            console.error('Failed to save config:', error);
+        }
+    }
+
+    async loadConfig(name) {
+        if (!confirm(`Load config "${name}"? Current settings will be replaced.`)) return;
+        try {
+            await fetch('/api/config/load', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name })
+            });
+            this.loadModules();
+            alert('Config loaded!');
+        } catch (error) {
+            console.error('Failed to load config:', error);
+        }
+    }
+
+    async updateCharts() {
+        try {
+            const [speedRes, packetRes, latencyRes, yawRes] = await Promise.all([
+                fetch('/api/speed'),
+                fetch('/api/packets'),
+                fetch('/api/latency'),
+                fetch('/api/yaw')
+            ]);
+
+            const speedData = await speedRes.json();
+            const packetData = await packetRes.json();
+            const latencyData = await latencyRes.json();
+            const yawData = await yawRes.json();
+
+            this.drawLineChart('speedChart', speedData.speed, '#00ff88', 'BPS', 0, 20);
+            this.drawPacketChart('packetChart', packetData.in, packetData.out);
+            this.drawLineChart('latencyChart', latencyData.latency, '#ffaa00', 'ms', 0, 500);
+            this.drawYawChart('yawChart', yawData.yaw, yawData.pitch);
+        } catch (error) {
+            console.error('Failed to update charts:', error);
+        }
+    }
+
+    drawLineChart(canvasId, data, color, label, minVal, maxVal) {
+        const canvas = document.getElementById(canvasId);
+        if (!canvas || !data || data.length === 0) return;
+
+        const ctx = canvas.getContext('2d');
+        const w = canvas.width;
+        const h = canvas.height;
+        const padding = { top: 20, right: 20, bottom: 30, left: 50 };
+        const chartW = w - padding.left - padding.right;
+        const chartH = h - padding.top - padding.bottom;
+
+        ctx.clearRect(0, 0, w, h);
+
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+        ctx.fillRect(0, 0, w, h);
+
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+        ctx.lineWidth = 1;
+        for (let i = 0; i <= 4; i++) {
+            const y = padding.top + (chartH / 4) * i;
+            ctx.beginPath();
+            ctx.moveTo(padding.left, y);
+            ctx.lineTo(w - padding.right, y);
+            ctx.stroke();
+
+            const val = maxVal - ((maxVal - minVal) / 4) * i;
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+            ctx.font = '10px Arial';
+            ctx.textAlign = 'right';
+            ctx.fillText(Math.round(val), padding.left - 5, y + 4);
+        }
+
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+        ctx.font = '11px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(label, w / 2, padding.top - 4);
+
+        if (data.length < 2) return;
+
+        const stepX = chartW / Math.max(data.length - 1, 1);
+        const actualMax = Math.max(maxVal, ...data);
+        const actualMin = Math.min(minVal, ...data);
+        const range = actualMax - actualMin || 1;
+
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+
+        for (let i = 0; i < data.length; i++) {
+            const x = padding.left + i * stepX;
+            const y = padding.top + chartH - ((data[i] - actualMin) / range) * chartH;
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+
+        ctx.fillStyle = color;
+        for (let i = 0; i < data.length; i += Math.max(1, Math.floor(data.length / 20))) {
+            const x = padding.left + i * stepX;
+            const y = padding.top + chartH - ((data[i] - actualMin) / range) * chartH;
+            ctx.beginPath();
+            ctx.arc(x, y, 3, 0, 2 * Math.PI);
+            ctx.fill();
+        }
+    }
+
+    drawPacketChart(canvasId, dataIn, dataOut) {
+        const canvas = document.getElementById(canvasId);
+        if (!canvas || !dataIn || !dataOut || dataIn.length === 0) return;
+
+        const ctx = canvas.getContext('2d');
+        const w = canvas.width;
+        const h = canvas.height;
+        const padding = { top: 20, right: 20, bottom: 30, left: 50 };
+        const chartW = w - padding.left - padding.right;
+        const chartH = h - padding.top - padding.bottom;
+
+        ctx.clearRect(0, 0, w, h);
+
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+        ctx.fillRect(0, 0, w, h);
+
+        const maxVal = Math.max(...dataIn, ...dataOut, 1);
+        const range = maxVal || 1;
+
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+        ctx.lineWidth = 1;
+        for (let i = 0; i <= 4; i++) {
+            const y = padding.top + (chartH / 4) * i;
+            ctx.beginPath();
+            ctx.moveTo(padding.left, y);
+            ctx.lineTo(w - padding.right, y);
+            ctx.stroke();
+
+            const val = maxVal - (maxVal / 4) * i;
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+            ctx.font = '10px Arial';
+            ctx.textAlign = 'right';
+            ctx.fillText(Math.round(val), padding.left - 5, y + 4);
+        }
+
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+        ctx.font = '11px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('pkt/s', w / 2, padding.top - 4);
+
+        const stepX = chartW / Math.max(dataIn.length - 1, 1);
+
+        ctx.strokeStyle = '#ff4444';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        for (let i = 0; i < dataIn.length; i++) {
+            const x = padding.left + i * stepX;
+            const y = padding.top + chartH - (dataIn[i] / range) * chartH;
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+
+        ctx.strokeStyle = '#4488ff';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        for (let i = 0; i < dataOut.length; i++) {
+            const x = padding.left + i * stepX;
+            const y = padding.top + chartH - (dataOut[i] / range) * chartH;
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+
+        ctx.fillStyle = '#ff4444';
+        ctx.font = '11px Arial';
+        ctx.textAlign = 'left';
+        ctx.fillText('In', padding.left + 5, padding.top + 14);
+        ctx.fillStyle = '#4488ff';
+        ctx.fillText('Out', padding.left + 30, padding.top + 14);
+    }
+
+    drawYawChart(canvasId, yawData, pitchData) {
+        const canvas = document.getElementById(canvasId);
+        if (!canvas || !yawData || !pitchData || yawData.length === 0) return;
+
+        const ctx = canvas.getContext('2d');
+        const w = canvas.width;
+        const h = canvas.height;
+        const padding = { top: 20, right: 20, bottom: 30, left: 50 };
+        const chartW = w - padding.left - padding.right;
+        const chartH = h - padding.top - padding.bottom;
+
+        ctx.clearRect(0, 0, w, h);
+
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+        ctx.fillRect(0, 0, w, h);
+
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+        ctx.lineWidth = 1;
+        for (let i = 0; i <= 4; i++) {
+            const y = padding.top + (chartH / 4) * i;
+            ctx.beginPath();
+            ctx.moveTo(padding.left, y);
+            ctx.lineTo(w - padding.right, y);
+            ctx.stroke();
+        }
+
+        const yawRange = 360;
+        const pitchRange = 180;
+
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+        ctx.font = '10px Arial';
+        ctx.textAlign = 'right';
+        for (let i = 0; i <= 4; i++) {
+            const y = padding.top + (chartH / 4) * i;
+            const val = 180 - (360 / 4) * i;
+            ctx.fillText(val + '°', padding.left - 5, y + 4);
+        }
+
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+        ctx.font = '11px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('deg', w / 2, padding.top - 4);
+
+        const stepX = chartW / Math.max(yawData.length - 1, 1);
+
+        const unwrapYaw = (data) => {
+            const result = [data[0]];
+            let offset = 0;
+            for (let i = 1; i < data.length; i++) {
+                let diff = data[i] - data[i - 1];
+                if (diff > 180) offset -= 360;
+                if (diff < -180) offset += 360;
+                result.push(data[i] + offset);
+            }
+            return result;
+        };
+
+        const unwrappedYaw = unwrapYaw(yawData);
+        const allYaw = [...unwrappedYaw, ...pitchData];
+        const globalMin = Math.min(...allYaw) - 10;
+        const globalMax = Math.max(...allYaw) + 10;
+        const range = globalMax - globalMin || 1;
+
+        ctx.strokeStyle = '#ff88ff';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        for (let i = 0; i < unwrappedYaw.length; i++) {
+            const x = padding.left + i * stepX;
+            const y = padding.top + chartH - ((unwrappedYaw[i] - globalMin) / range) * chartH;
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+
+        ctx.strokeStyle = '#88ffff';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        for (let i = 0; i < pitchData.length; i++) {
+            const x = padding.left + i * stepX;
+            const y = padding.top + chartH - ((pitchData[i] - globalMin) / range) * chartH;
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+
+        ctx.fillStyle = '#ff88ff';
+        ctx.font = '11px Arial';
+        ctx.textAlign = 'left';
+        ctx.fillText('Yaw', padding.left + 5, padding.top + 14);
+        ctx.fillStyle = '#88ffff';
+        ctx.fillText('Pitch', padding.left + 45, padding.top + 14);
+    }
 
 }
 

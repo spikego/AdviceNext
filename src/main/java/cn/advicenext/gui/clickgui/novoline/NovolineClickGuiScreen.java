@@ -6,6 +6,7 @@ import cn.advicenext.features.module.ModuleManager;
 import cn.advicenext.features.module.impl.render.ClickGui;
 import cn.advicenext.features.value.AbstractSetting;
 import cn.advicenext.features.value.BooleanSetting;
+import cn.advicenext.features.value.ColorSetting;
 import cn.advicenext.features.value.ModeSetting;
 import cn.advicenext.features.value.StringSetting;
 import cn.advicenext.features.value.slider.DoubleSetting;
@@ -188,6 +189,8 @@ public class NovolineClickGuiScreen extends Screen {
                         drawNumberSetting(context, (NumberSetting<?>) setting, x, settingY, mouseX);
                     } else if (setting instanceof StringSetting) {
                         drawStringSetting(context, (StringSetting) setting, x, settingY);
+                    } else if (setting instanceof ColorSetting) {
+                        drawColorSetting(context, (ColorSetting) setting, x, settingY);
                     }
 
                     settingY += settingHeight;
@@ -283,13 +286,18 @@ public class NovolineClickGuiScreen extends Screen {
     }
 
     private void drawStringSetting(DrawContext context, StringSetting setting, int x, int y) {
-        // Draw setting name
         context.drawTextWithShadow(textRenderer, setting.getName(), x + 5, y + (settingHeight - 8) / 2, textColor.getRGB());
-
-        // Draw current value
         String value = setting.getValue();
         int valueWidth = textRenderer.getWidth(value);
         context.drawTextWithShadow(textRenderer, value, x + categoryWidth - valueWidth - 5, y + (settingHeight - 8) / 2, accentColor.getRGB());
+    }
+
+    private void drawColorSetting(DrawContext context, ColorSetting setting, int x, int y) {
+        context.drawTextWithShadow(textRenderer, setting.getName(), x + 5, y + (settingHeight - 8) / 2, textColor.getRGB());
+        int cbSize = 10;
+        int cbx = x + categoryWidth - cbSize - 8;
+        int cby = y + (settingHeight - cbSize) / 2;
+        context.fill(cbx, cby, cbx + cbSize, cby + cbSize, setting.getValue());
     }
 
     private void drawRangeSetting(DrawContext context, RangeSetting setting, int x, int y) {

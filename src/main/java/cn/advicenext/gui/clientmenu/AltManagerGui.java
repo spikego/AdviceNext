@@ -2,6 +2,8 @@ package cn.advicenext.gui.clientmenu;
 
 import cn.advicenext.AdviceNext;
 import cn.advicenext.gui.mainmenu.MainMenuScreen;
+import cn.advicenext.utility.client.render.font.FontRenderer;
+import cn.advicenext.utility.client.render.font.Fonts;
 import net.ccbluex.liquidbounce.authlib.account.CrackedAccount;
 import net.ccbluex.liquidbounce.authlib.account.MicrosoftAccount;
 import net.ccbluex.liquidbounce.authlib.account.MinecraftAccount;
@@ -108,12 +110,15 @@ public class AltManagerGui extends Screen {
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         // 先渲染原版背景（含模糊效果）
         super.render(context, mouseX, mouseY, delta);
+        FontRenderer.setRenderState(context.state, context.getMatrices());
+        FontRenderer fr1 = Fonts.monoBold.get(18);
 
         // 半透明覆盖层
         context.fill(0, 0, width, height, BG_COLOR);
 
         // 标题
-        context.drawCenteredTextWithShadow(textRenderer, "Alt Manager", width / 2, 15, TEXT_COLOR);
+        //context.drawCenteredTextWithShadow(textRenderer, "Alt Manager", width / 2, 15, TEXT_COLOR);
+        fr1.drawCenteredString("Alt Manager", (float) width / 2, 15, TEXT_COLOR);
 
         // 状态信息
         if (isLoading) {

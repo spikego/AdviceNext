@@ -42,36 +42,70 @@ public final class Render2DEngine {
         }
     }
 
-    // ==================== 圆角边框 ====================
+    // ==================== 圆角边框（扫描线法，无 Alpha Overlap） ====================
 
+    /**
+     * 绘制圆角边框：通过逐行扫描计算外矩形与内矩形之间的间隙，
+     * 一块 fill 完成整条边框，避免多层叠加造成的重叠区颜色加深。
+     */
     public static void drawRoundOutline(DrawContext ctx, float x, float y, float width, float height,
                                         float radius, float thickness, int color) {
-        for (float t = 0; t < thickness; t += 1.0F) {
-            float r = Math.max(0.0F, radius - t);
-            drawRoundOutlinePass(ctx, x + t, y + t, width - t * 2, height - t * 2, r, color);
-        }
-    }
-
-    private static void drawRoundOutlinePass(DrawContext ctx, float x, float y, float width, float height, float radius, int color) {
+        if (thickness <= 0 || ((color >>> 24) & 0xFF) == 0) return;
         radius = RoundUtils.clampRadius(radius, width, height);
-        int intRadius = (int) Math.ceil(radius);
 
-        // 四条直边
-        ctx.fill((int) (x + radius), (int) y, (int) (x + width - radius), (int) (y + 1), color);
-        ctx.fill((int) (x + radius), (int) (y + height - 1), (int) (x + width - radius), (int) (y + height), color);
-        ctx.fill((int) x, (int) (y + radius), (int) (x + 1), (int) (y + height - radius), color);
-        ctx.fill((int) (x + width - 1), (int) (y + radius), (int) (x + width), (int) (y + height - radius), color);
+        // 外圆角半径 → 内圆角半径（偏移厚度）
+        float outR = radius;
+        float inR = Math.max(0, radius - thickness);
+        float inX = x + thickness, inY = y + thickness;
+        float inW = width - thickness * 2, inH = height - thickness * 2;
 
-        // 四角：逐行绘制上下边线段
-        for (int row = 0; row < intRadius; row++) {
-            float inset = RoundUtils.insetForRow(radius, row + 0.5F);
-            // 顶部左右角
-            ctx.fill((int) (x + inset), (int) (y + row), (int) (x + radius), (int) (y + row + 1), color);
-            ctx.fill((int) (x + width - radius), (int) (y + row), (int) (x + width - inset), (int) (y + row + 1), color);
-            // 底部左右角
-            int bottomRow = (int) (y + height - row - 1);
-            ctx.fill((int) (x + inset), bottomRow, (int) (x + radius), bottomRow + 1, color);
-            ctx.fill((int) (x + width - radius), bottomRow, (int) (x + width - inset), bottomRow + 1, color);
+        int startY = (int) y;
+        int endY = (int) (y + height);
+        int intR = (int) Math.ceil(outR);
+
+        for (int row = startY; row <= endY; row++) {
+            float dyToTop = row - y;
+            float dyToBot = (y + height) - row - 1;
+
+            // 外矩形左右边界
+            float outLeft = x;
+            float outRight = x + width;
+            if (dyToTop < intR) {
+                float inset = RoundUtils.insetForRow(outR, dyToTop);
+                outLeft = x + inset;
+                outRight = x + width - inset;
+            } else if (dyToBot < intR && dyToTop >= height - intR) {
+                float inset = RoundUtils.insetForRow(outR, dyToBot);
+                outLeft = x + inset;
+                outRight = x + width - inset;
+            }
+
+            // 内矩形左右边界
+            float inLeft = inX;
+            float inRight = inX + inW;
+            if (inR > 0) {
+                float dyInTop = row - inY;
+                float dyInBot = (inY + inH) - row - 1;
+                if (dyInTop < inR) {
+                    float inset = RoundUtils.insetForRow(inR, dyInTop);
+                    inLeft = inX + inset;
+                    inRight = inX + inW - inset;
+                } else if (dyInBot < inR && dyInTop >= inH - inR) {
+                    float inset = RoundUtils.insetForRow(inR, dyInBot);
+                    inLeft = inX + inset;
+                    inRight = inX + inW - inset;
+                }
+            }
+
+            // 左侧边
+            int l1 = (int) Math.ceil(outLeft);
+            int l2 = (int) inLeft;
+            if (l2 > l1) ctx.fill(l1, row, l2, row + 1, color);
+
+            // 右侧边
+            int r1 = (int) Math.ceil(inRight);
+            int r2 = (int) outRight;
+            if (r2 > r1) ctx.fill(r1, row, r2, row + 1, color);
         }
     }
 
@@ -150,6 +184,35 @@ public final class Render2DEngine {
             float cx = x1 + dx * t;
             float cy = y1 + dy * t;
             ctx.fill((int) (cx - half), (int) (cy - half), (int) (cx + half), (int) (cy + half), color);
+        }
+    }
+    /** 1px 细线，比 drawLine 快约 2 倍（3D 线框专用） */
+    public static void drawThinLine(DrawContext ctx, float x1, float y1, float x2, float y2, int color) {
+        float dx = x2 - x1;
+        float dy = y2 - y1;
+        float adx = Math.abs(dx), ady = Math.abs(dy);
+
+        if (adx < 0.1F && ady < 0.1F) {
+            ctx.fill((int) x1, (int) y1, (int) x1 + 1, (int) y1 + 1, color);
+            return;
+        }
+
+        if (adx > ady) {
+            if (x1 > x2) { float t = x1; x1 = x2; x2 = t; t = y1; y1 = y2; y2 = t; }
+            float slope = (y2 - y1) / (x2 - x1);
+            int ix1 = (int) x1, ix2 = (int) Math.ceil(x2);
+            for (int x = ix1; x <= ix2; x++) {
+                int y = (int) (y1 + (x - x1) * slope);
+                ctx.fill(x, y, x + 1, y + 1, color);
+            }
+        } else {
+            if (y1 > y2) { float t = y1; y1 = y2; y2 = t; t = x1; x1 = x2; x2 = t; }
+            float slope = (x2 - x1) / (y2 - y1);
+            int iy1 = (int) y1, iy2 = (int) Math.ceil(y2);
+            for (int y = iy1; y <= iy2; y++) {
+                int x = (int) (x1 + (y - y1) * slope);
+                ctx.fill(x, y, x + 1, y + 1, color);
+            }
         }
     }
 

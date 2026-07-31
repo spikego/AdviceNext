@@ -1,15 +1,19 @@
 package cn.advicenext.utility.client.render;
 
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.render.Camera;
+import net.minecraft.client.render.VertexConsumer;
+import net.minecraft.client.render.state.CameraRenderState;
+import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
 
 /**
- * 3D 渲染引擎：世界坐标几何 → 屏幕投影 → 2D 绘制。
- * 在 Render2DEvent 中调用（DrawContext 可用）。
- * 投影走 GameRenderer.project，与 ESP 名称标签同一条已验证路径，
- * 不触碰世界渲染 pipeline，稳定可靠。
+ * 真 3D 渲染引擎。
+ * <ul>
+ *   <li>真 3D 方法：使用 OpenGL 在世界空间中直接绘制（需在 WorldRenderer mixin 上下文中调用）</li>
+ *   <li>投影工具：世界坐标 → 屏幕像素坐标（供 2D HUD / ESP 使用）</li>
+ * </ul>
  */
 public final class Render3DEngine {
 
@@ -18,40 +22,90 @@ public final class Render3DEngine {
     private Render3DEngine() {
     }
 
-    // ==================== 投影 ====================
+    // ==================== 投影工具（2D HUD / ESP 使用） ====================
 
-    /** 世界坐标 → 屏幕坐标。返回的 z ∈ [0,1] 表示可见。 */
-    public static Vec3d project(Vec3d worldPos) {
-        return mc.gameRenderer.project(worldPos);
+    /**
+     * 世界坐标 → 屏幕像素坐标。
+     * 返回 null 表示该点在相机后方（z &lt; 0.05）。
+     */
+    public static Vec3d worldToScreen(double wx, double wy, double wz) {
+        Camera camera = mc.gameRenderer.getCamera();
+        Vec3d camPos = camera.getCameraPos();
+
+        double dx = wx - camPos.x;
+        double dy = wy - camPos.y;
+        double dz = wz - camPos.z;
+
+        double yaw = Math.toRadians(camera.getYaw());
+        double pitch = Math.toRadians(camera.getPitch());
+
+        double cosY = Math.cos(yaw), sinY = Math.sin(yaw);
+        double cosP = Math.cos(pitch), sinP = Math.sin(pitch);
+
+        double x1 = -dx * cosY - dz * sinY;
+        double z1 = -dx * sinY + dz * cosY;
+
+        double y1 = dy * cosP + z1 * sinP;
+        double z2 = -dy * sinP + z1 * cosP;
+
+        if (z2 < 0.05)
+            return null;
+
+        double fov = getDynamicFov();
+        double hw = mc.getWindow().getScaledWidth() / 2.0;
+        double hh = mc.getWindow().getScaledHeight() / 2.0;
+
+        double scale = hh / (z2 * Math.tan(Math.toRadians(fov / 2.0)));
+
+        return new Vec3d(hw + x1 * scale, hh - y1 * scale, z2);
     }
 
-    public static boolean isVisible(Vec3d projected) {
-        return projected != null && projected.z >= 0.0 && projected.z <= 1.0;
+    private static double getDynamicFov() {
+        double fov = mc.options.getFov().getValue().intValue();
+        if (mc.player != null) {
+            float fovEffectScale = mc.options.getFovEffectScale().getValue().floatValue();
+            fov *= mc.player.getFovMultiplier(mc.options.getPerspective().isFirstPerson(), fovEffectScale);
+        }
+        return fov;
     }
 
-    // ==================== 3D 线段 ====================
-
-    public static void drawLine3D(DrawContext ctx, Vec3d a, Vec3d b, int color, float thickness) {
-        Vec3d pa = project(a);
-        Vec3d pb = project(b);
-        if (!isVisible(pa) || !isVisible(pb)) return;
-        Render2DEngine.drawLine(ctx, (float) pa.x, (float) pa.y, (float) pb.x, (float) pb.y, thickness, color);
+    public static Vec3d worldToScreen(Vec3d worldPos) {
+        return worldToScreen(worldPos.x, worldPos.y, worldPos.z);
     }
 
-    // ==================== 盒体 ====================
-
-    private static Vec3d[] boxCorners(Box box) {
-        return new Vec3d[] {
-            new Vec3d(box.minX, box.minY, box.minZ),
-            new Vec3d(box.maxX, box.minY, box.minZ),
-            new Vec3d(box.maxX, box.minY, box.maxZ),
-            new Vec3d(box.minX, box.minY, box.maxZ),
-            new Vec3d(box.minX, box.maxY, box.minZ),
-            new Vec3d(box.maxX, box.maxY, box.minZ),
-            new Vec3d(box.maxX, box.maxY, box.maxZ),
-            new Vec3d(box.minX, box.maxY, box.maxZ)
-        };
+    public static boolean isOnScreen(Vec3d projected) {
+        if (projected == null) return false;
+        float sw = mc.getWindow().getScaledWidth();
+        float sh = mc.getWindow().getScaledHeight();
+        return projected.x >= 0 && projected.x <= sw
+            && projected.y >= 0 && projected.y <= sh;
     }
+
+    /**
+     * 投影 AABB 8 角点到屏幕，返回 [minX, minY, maxX, maxY] 或 null。
+     */
+    public static float[] projectBoxCorners(Box box) {
+        Vec3d[] corners = getCorners(box);
+
+        float screenMinX = Float.MAX_VALUE, screenMinY = Float.MAX_VALUE;
+        float screenMaxX = -Float.MAX_VALUE, screenMaxY = -Float.MAX_VALUE;
+        boolean any = false;
+
+        for (Vec3d corner : corners) {
+            Vec3d s = worldToScreen(corner);
+            if (s != null) {
+                any = true;
+                screenMinX = Math.min(screenMinX, (float) s.x);
+                screenMinY = Math.min(screenMinY, (float) s.y);
+                screenMaxX = Math.max(screenMaxX, (float) s.x);
+                screenMaxY = Math.max(screenMaxY, (float) s.y);
+            }
+        }
+
+        return any ? new float[]{screenMinX, screenMinY, screenMaxX, screenMaxY} : null;
+    }
+
+    // ==================== 真 3D 渲染（OpenGL 世界空间） ====================
 
     private static final int[][] BOX_EDGES = {
         {0, 1}, {1, 2}, {2, 3}, {3, 0},
@@ -60,89 +114,133 @@ public final class Render3DEngine {
     };
 
     private static final int[][] BOX_FACES = {
-        {0, 1, 2, 3}, // 底
-        {4, 7, 6, 5}, // 顶
-        {0, 4, 5, 1}, // 北
-        {2, 6, 7, 3}, // 南
-        {1, 5, 6, 2}, // 东
-        {0, 3, 7, 4}  // 西
+        {0, 1, 2, 3}, {4, 5, 6, 7},
+        {2, 3, 7, 6}, {0, 1, 5, 4},
+        {0, 3, 7, 4}, {1, 2, 6, 5}
     };
 
-    public static void drawBoxOutline(DrawContext ctx, Box box, int color, float thickness) {
-        Vec3d[] corners = boxCorners(box);
-        Vec3d[] projected = new Vec3d[8];
-        for (int i = 0; i < 8; i++) {
-            projected[i] = project(corners[i]);
-        }
+    private static Vec3d[] getCorners(Box box) {
+        return new Vec3d[] {
+            new Vec3d(box.minX, box.minY, box.minZ),
+            new Vec3d(box.maxX, box.minY, box.minZ),
+            new Vec3d(box.maxX, box.minY, box.maxZ),
+            new Vec3d(box.minX, box.minY, box.maxZ),
+            new Vec3d(box.minX, box.maxY, box.minZ),
+            new Vec3d(box.maxX, box.maxY, box.minZ),
+            new Vec3d(box.maxX, box.maxY, box.maxZ),
+            new Vec3d(box.minX, box.maxY, box.maxZ),
+        };
+    }
+
+    private static float[] getCornerFloats(Box box) {
+        return new float[] {
+            (float) box.minX, (float) box.minY, (float) box.minZ,
+            (float) box.maxX, (float) box.minY, (float) box.minZ,
+            (float) box.maxX, (float) box.minY, (float) box.maxZ,
+            (float) box.minX, (float) box.minY, (float) box.maxZ,
+            (float) box.minX, (float) box.maxY, (float) box.minZ,
+            (float) box.maxX, (float) box.maxY, (float) box.minZ,
+            (float) box.maxX, (float) box.maxY, (float) box.maxZ,
+            (float) box.minX, (float) box.maxY, (float) box.maxZ,
+        };
+    }
+
+    /**
+     * 真 3D 线框盒 — 使用 OpenGL 在世界空间中绘制 12 条边。
+     */
+    public static void drawBox3D(MatrixStack matrices, VertexConsumer vertexConsumer,
+                                  CameraRenderState camera, Box box, int color, float lineWidth) {
+        MatrixStack.Entry entry = matrices.peek();
+        float[] c = getCornerFloats(box);
+        double camX = camera.pos.getX();
+        double camY = camera.pos.getY();
+        double camZ = camera.pos.getZ();
 
         for (int[] edge : BOX_EDGES) {
-            Vec3d pa = projected[edge[0]];
-            Vec3d pb = projected[edge[1]];
-            if (!isVisible(pa) || !isVisible(pb)) continue;
-            Render2DEngine.drawLine(ctx, (float) pa.x, (float) pa.y, (float) pb.x, (float) pb.y, thickness, color);
+            int i0 = edge[0] * 3, i1 = edge[1] * 3;
+            float x0 = c[i0] - (float) camX;
+            float y0 = c[i0 + 1] - (float) camY;
+            float z0 = c[i0 + 2] - (float) camZ;
+            float x1 = c[i1] - (float) camX;
+            float y1 = c[i1 + 1] - (float) camY;
+            float z1 = c[i1 + 2] - (float) camZ;
+
+            float dx = x1 - x0, dy = y1 - y0, dz = z1 - z0;
+
+            vertexConsumer.vertex(entry, x0, y0, z0)
+                .normal(entry, dx, dy, dz)
+                .color(color)
+                .lineWidth(lineWidth);
+            vertexConsumer.vertex(entry, x1, y1, z1)
+                .normal(entry, dx, dy, dz)
+                .color(color)
+                .lineWidth(lineWidth);
         }
     }
 
-    public static void drawBoxFilled(DrawContext ctx, Box box, int color) {
-        Vec3d[] corners = boxCorners(box);
-        Vec3d[] projected = new Vec3d[8];
-        for (int i = 0; i < 8; i++) {
-            projected[i] = project(corners[i]);
-        }
+    /**
+     * 真 3D 线段 — 在世界空间中绘制单条线段。
+     */
+    public static void drawLine3D(MatrixStack matrices, VertexConsumer vertexConsumer,
+                                   CameraRenderState camera, Vec3d a, Vec3d b, int color, float lineWidth) {
+        MatrixStack.Entry entry = matrices.peek();
+        double camX = camera.pos.getX();
+        double camY = camera.pos.getY();
+        double camZ = camera.pos.getZ();
 
-        for (int[] face : BOX_FACES) {
-            Vec3d p0 = projected[face[0]];
-            Vec3d p1 = projected[face[1]];
-            Vec3d p2 = projected[face[2]];
-            Vec3d p3 = projected[face[3]];
-            if (!isVisible(p0) || !isVisible(p1) || !isVisible(p2) || !isVisible(p3)) continue;
-            Render2DEngine.fillTriangle(ctx,
-                (float) p0.x, (float) p0.y, (float) p1.x, (float) p1.y, (float) p2.x, (float) p2.y, color);
-            Render2DEngine.fillTriangle(ctx,
-                (float) p0.x, (float) p0.y, (float) p2.x, (float) p2.y, (float) p3.x, (float) p3.y, color);
-        }
+        float x0 = (float) (a.x - camX);
+        float y0 = (float) (a.y - camY);
+        float z0 = (float) (a.z - camZ);
+        float x1 = (float) (b.x - camX);
+        float y1 = (float) (b.y - camY);
+        float z1 = (float) (b.z - camZ);
+
+        float dx = x1 - x0, dy = y1 - y0, dz = z1 - z0;
+
+        vertexConsumer.vertex(entry, x0, y0, z0)
+            .normal(entry, dx, dy, dz)
+            .color(color)
+            .lineWidth(lineWidth);
+        vertexConsumer.vertex(entry, x1, y1, z1)
+            .normal(entry, dx, dy, dz)
+            .color(color)
+            .lineWidth(lineWidth);
     }
 
-    public static void drawBox(DrawContext ctx, Box box, int fillColor, int lineColor, float thickness) {
-        if (((fillColor >>> 24) & 0xFF) > 0) {
-            drawBoxFilled(ctx, box, fillColor);
-        }
-        if (((lineColor >>> 24) & 0xFF) > 0) {
-            drawBoxOutline(ctx, box, lineColor, thickness);
-        }
-    }
+    /**
+     * 真 3D 圆环 — 在世界空间水平面上绘制。
+     */
+    public static void drawCircle3D(MatrixStack matrices, VertexConsumer vertexConsumer,
+                                     CameraRenderState camera, Vec3d center, float radius,
+                                     int color, int segments, float lineWidth) {
+        MatrixStack.Entry entry = matrices.peek();
+        double camX = camera.pos.getX();
+        double camY = camera.pos.getY();
+        double camZ = camera.pos.getZ();
 
-    // ==================== 圆环 / 圆盘 ====================
+        float cx = (float) (center.x - camX);
+        float cy = (float) (center.y - camY);
+        float cz = (float) (center.z - camZ);
 
-    public static void drawCircleOutline(DrawContext ctx, Vec3d center, float radius, int color, int segments, float thickness) {
-        Vec3d prev = null;
-        for (int i = 0; i <= segments; i++) {
-            double angle = Math.PI * 2.0 * i / segments;
-            Vec3d point = center.add(Math.cos(angle) * radius, 0, Math.sin(angle) * radius);
-            if (prev != null) {
-                drawLine3D(ctx, prev, point, color, thickness);
-            }
-            prev = point;
-        }
-    }
+        for (int i = 0; i < segments; i++) {
+            double a1 = Math.PI * 2.0 * i / segments;
+            double a2 = Math.PI * 2.0 * (i + 1) / segments;
 
-    /** 圆盘填充：圆心 + 相邻两点构成三角扇 */
-    public static void drawCircleFilled(DrawContext ctx, Vec3d center, float radius, int color, int segments) {
-        Vec3d projectedCenter = project(center);
-        if (!isVisible(projectedCenter)) return;
+            float x0 = cx + (float) Math.cos(a1) * radius;
+            float z0 = cz + (float) Math.sin(a1) * radius;
+            float x1 = cx + (float) Math.cos(a2) * radius;
+            float z1 = cz + (float) Math.sin(a2) * radius;
 
-        Vec3d prev = null;
-        for (int i = 0; i <= segments; i++) {
-            double angle = Math.PI * 2.0 * i / segments;
-            Vec3d point = project(center.add(Math.cos(angle) * radius, 0, Math.sin(angle) * radius));
-            if (prev != null && isVisible(prev) && isVisible(point)) {
-                Render2DEngine.fillTriangle(ctx,
-                    (float) projectedCenter.x, (float) projectedCenter.y,
-                    (float) prev.x, (float) prev.y,
-                    (float) point.x, (float) point.y,
-                    color);
-            }
-            prev = point;
+            float dx = x1 - x0, dz = z1 - z0;
+
+            vertexConsumer.vertex(entry, x0, cy, z0)
+                .normal(entry, dx, 0, dz)
+                .color(color)
+                .lineWidth(lineWidth);
+            vertexConsumer.vertex(entry, x1, cy, z1)
+                .normal(entry, dx, 0, dz)
+                .color(color)
+                .lineWidth(lineWidth);
         }
     }
 }

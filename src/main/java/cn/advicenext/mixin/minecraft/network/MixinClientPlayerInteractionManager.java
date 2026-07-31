@@ -1,9 +1,11 @@
 package cn.advicenext.mixin.minecraft.network;
 
+import cn.advicenext.event.EventBus;
+import cn.advicenext.event.impl.AttackEvent;
 import cn.advicenext.utility.minecraft.player.RotationManager;
 import cn.advicenext.utility.minecraft.player.RotationUtils;
-import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayerInteractionManager;
+import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.Hand;
@@ -15,16 +17,11 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
- * 使用物品（弓、钓竿、雪球、末影珍珠等）的旋转修正。
- *
- * interactItem 发出的 PlayerInteractItemC2SPacket 携带 player.getYaw()/getPitch()，
- * 服务器用该朝向生成投射物。静默旋转激活时，若直接用视觉 yaw 发包，
- * 服务器视角下就是"人朝前、箭朝后"的矛盾。此处在整个 interactItem
- * 执行期间把玩家旋转临时换成服务端旋转，使：
- * <ul>
- *   <li>发包朝向 = 服务端朝向（投射物方向与服务器视角自洽）；</li>
- *   <li>itemStack.use() 的客户端逻辑同样使用服务端朝向，行为一致。</li>
- * </ul>
+ * 交互管理器 Mixin。
+ * 在 interactItem 中临时替换玩家旋转为服务端旋转，
+ * 确保数据包中的 yaw/pitch 与静默旋转一致。
+ * 由于 sendSequencedPacket 同步执行 lambda，旋转在 HEAD 设置、TAIL 恢复，
+ * 不会影响渲染（渲染在独立的帧循环中）。
  */
 @Mixin(ClientPlayerInteractionManager.class)
 public abstract class MixinClientPlayerInteractionManager {
@@ -36,83 +33,40 @@ public abstract class MixinClientPlayerInteractionManager {
     private float savedPitch;
 
     @Unique
-    private boolean swapped;
+    private boolean rotationPatched;
 
-    @Unique
-    private float savedYawStop;
-
-    @Unique
-    private float savedPitchStop;
-
-    @Unique
-    private boolean swappedStop;
-
-    @Inject(method = "interactItem", at = @At("HEAD"))
-    private void swapToServerRotation(PlayerEntity player, Hand hand, CallbackInfoReturnable<ActionResult> cir) {
-        swapped = false;
-        if (!shouldSwap(player)) return;
-
-        savedYaw = player.getYaw();
-        savedPitch = player.getPitch();
-        player.setYaw(getEffectiveServerYaw());
-        player.setPitch(getEffectiveServerPitch());
-        swapped = true;
-    }
-
-    @Inject(method = "interactItem", at = @At("RETURN"))
-    private void restoreRotation(PlayerEntity player, Hand hand, CallbackInfoReturnable<ActionResult> cir) {
-        if (!swapped) return;
-        player.setYaw(savedYaw);
-        player.setPitch(savedPitch);
-        swapped = false;
+    @Inject(method = "attackEntity", at = @At("HEAD"))
+    private void onAttackEntity(PlayerEntity player, Entity target, CallbackInfo ci) {
+        AttackEvent event = new AttackEvent(target);
+        EventBus.post(event);
     }
 
     /**
-     * 松开使用键的时刻（弓放箭、钓竿收杆、弩发射后的释放）：
-     * stopUsingItem 不在 doItemUse 内，不受 doItemUse 的旋转 swap 覆盖，
-     * 必须单独处理，否则客户端的释放逻辑会回到视觉旋转执行。
+     * interactItem 中 Packet 构造使用 player.getYaw()/getPitch()，
+     * 在 HEAD 替换为服务端旋转，TAIL 恢复。
      */
-    @Inject(method = "stopUsingItem", at = @At("HEAD"))
-    private void swapToServerRotationOnStop(PlayerEntity player, CallbackInfo ci) {
-        swappedStop = false;
-        if (!shouldSwap(player)) return;
+    @Inject(method = "interactItem", at = @At("HEAD"))
+    private void onInteractItemHead(PlayerEntity player, Hand hand, CallbackInfoReturnable<ActionResult> cir) {
+        savedYaw = player.getYaw();
+        savedPitch = player.getPitch();
+        rotationPatched = false;
 
-        savedYawStop = player.getYaw();
-        savedPitchStop = player.getPitch();
-        player.setYaw(getEffectiveServerYaw());
-        player.setPitch(getEffectiveServerPitch());
-        swappedStop = true;
-    }
-
-    @Inject(method = "stopUsingItem", at = @At("RETURN"))
-    private void restoreRotationOnStop(PlayerEntity player, CallbackInfo ci) {
-        if (!swappedStop) return;
-        player.setYaw(savedYawStop);
-        player.setPitch(savedPitchStop);
-        swappedStop = false;
-    }
-
-    @Unique
-    private boolean shouldSwap(PlayerEntity player) {
-        MinecraftClient mc = MinecraftClient.getInstance();
-        if (player != mc.player) return false;
-        return RotationManager.INSTANCE.hasActiveRequest()
-            || (RotationUtils.isFakeRotation() && RotationUtils.getServerRotation() != null);
-    }
-
-    @Unique
-    private float getEffectiveServerYaw() {
         if (RotationManager.INSTANCE.hasActiveRequest()) {
-            return RotationManager.INSTANCE.getServerYaw();
+            player.setYaw(RotationManager.INSTANCE.getServerYaw());
+            player.setPitch(RotationManager.INSTANCE.getServerPitch());
+            rotationPatched = true;
+        } else if (RotationUtils.isFakeRotation() && RotationUtils.getServerRotation() != null) {
+            player.setYaw(RotationUtils.getServerYaw());
+            player.setPitch(RotationUtils.getServerPitch());
+            rotationPatched = true;
         }
-        return RotationUtils.getServerYaw();
     }
 
-    @Unique
-    private float getEffectiveServerPitch() {
-        if (RotationManager.INSTANCE.hasActiveRequest()) {
-            return RotationManager.INSTANCE.getServerPitch();
+    @Inject(method = "interactItem", at = @At("TAIL"))
+    private void onInteractItemTail(PlayerEntity player, Hand hand, CallbackInfoReturnable<ActionResult> cir) {
+        if (rotationPatched) {
+            player.setYaw(savedYaw);
+            player.setPitch(savedPitch);
         }
-        return RotationUtils.getServerPitch();
     }
 }

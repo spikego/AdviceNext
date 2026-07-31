@@ -3,6 +3,9 @@ package cn.advicenext.features.notification;
 import cn.advicenext.AdviceNext;
 import cn.advicenext.event.impl.Render2DEvent;
 import cn.advicenext.gui.colors.Colors;
+import cn.advicenext.utility.client.render.SkijaUIRenderer;
+import cn.advicenext.utility.client.render.font.FontRenderer;
+import cn.advicenext.utility.client.render.font.Fonts;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 
@@ -49,6 +52,7 @@ public class NotificationManager {
      */
     public void render(Render2DEvent event) {
         DrawContext context = event.getContext();
+        FontRenderer fr = Fonts.robotoBold.get(8);
         int screenWidth = mc.getWindow().getScaledWidth();
         int screenHeight = mc.getWindow().getScaledHeight();
         
@@ -76,18 +80,19 @@ public class NotificationManager {
             // 绘制通知背景（半透明）
             Color bgColor = new Color(25, 25, 25, (int)(200 * animation));
             context.fill(x, y, x + NOTIFICATION_WIDTH, y + NOTIFICATION_HEIGHT, bgColor.getRGB());
-            
             // 绘制通知类型颜色条
             Color typeColor = notification.getType().getColor();
             context.fill(x, y, x + 3, y + NOTIFICATION_HEIGHT, typeColor.getRGB());
             
             // 绘制通知标题
-            context.drawTextWithShadow(mc.textRenderer, notification.getTitle(), 
-                                      x + 8, y + 5, Colors.currentColor().getRGB());
+            //context.drawTextWithShadow(mc.textRenderer, notification.getTitle(),
+                                      //x + 8, y + 5, Colors.currentColor().getRGB());
+            fr.drawString(notification.getTitle(), x + 8, y + 5, Colors.currentColor().getRGB());
             
             // 绘制通知消息
-            context.drawTextWithShadow(mc.textRenderer, notification.getMessage(), 
-                                      x + 8, y + 18, Color.WHITE.getRGB());
+            //context.drawTextWithShadow(mc.textRenderer, notification.getMessage(),
+                                      //x + 8, y + 18, Color.WHITE.getRGB());
+            fr.drawString(notification.getMessage(), x + 8, y + 18, Color.WHITE.getRGB());
             
             // 绘制进度条
             float progress = notification.getProgress();

@@ -1,12 +1,15 @@
 package cn.advicenext.utility.client.http;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
 
 public class HttpUtils {
     
@@ -125,35 +128,84 @@ public class HttpUtils {
         return response.toString().trim();
     }
 
-    public record Response(int code, String body, Map<String, String> headers) {
+    public record Response(int code, String body, Map<String, List<String>> rawHeaders) {
         public boolean isSuccess() {
             return code >= 200 && code < 300;
         }
+
+        public Map<String, String> headers() {
+            return rawHeaders.entrySet().stream().collect(Collectors.toMap(
+                e -> e.getKey() != null ? e.getKey() : "Status",
+                e -> String.join(", ", e.getValue()),
+                (a, b) -> a));
         }
-    
-    public static Response request(String url, String method, String data, Map<String, String> headers) {
-        try {
-            HttpURLConnection conn = createConnection(url, method);
-            setHeaders(conn, headers);
-            
-            if (data != null && ("POST".equals(method) || "PUT".equals(method))) {
-                conn.setDoOutput(true);
-                try (OutputStream os = conn.getOutputStream()) {
-                    os.write(data.getBytes(StandardCharsets.UTF_8));
+
+        public List<String> getSetCookies() {
+            for (Map.Entry<String, List<String>> e : rawHeaders.entrySet()) {
+                if (e.getKey() != null && e.getKey().equalsIgnoreCase("Set-Cookie")) {
+                    return e.getValue();
                 }
             }
-            
-            int code = conn.getResponseCode();
-            String body = readResponse(conn);
-            Map<String, String> responseHeaders = conn.getHeaderFields().entrySet().stream()
-                .collect(java.util.stream.Collectors.toMap(
-                    e -> e.getKey() != null ? e.getKey() : "Status",
-                    e -> String.join(", ", e.getValue())
-                ));
-            
-            return new Response(code, body, responseHeaders);
+            return Collections.emptyList();
+        }
+    }
+    
+    public static Response request(String url, String method, String data, Map<String, String> headers) {
+        String currentUrl = url;
+        int maxRedirects = 5;
+        for (int redirect = 0; redirect < maxRedirects; redirect++) {
+            try {
+                HttpURLConnection conn = createConnection(currentUrl, method);
+                conn.setInstanceFollowRedirects(false);
+                setHeaders(conn, headers);
+
+                if (data != null && ("POST".equals(method) || "PUT".equals(method))) {
+                    conn.setDoOutput(true);
+                    try (OutputStream os = conn.getOutputStream()) {
+                        os.write(data.getBytes(StandardCharsets.UTF_8));
+                    }
+                }
+
+                int code = conn.getResponseCode();
+                if (code == 301 || code == 302 || code == 303 || code == 307 || code == 308) {
+                    String location = conn.getHeaderField("Location");
+                    if (location != null) {
+                        currentUrl = location.startsWith("/") ? 
+                            new URL(new URL(url), location).toString() : location;
+                        // For GET/HEAD, follow redirects. For POST, only 303 changes to GET.
+                        if (method.equals("POST") && code == 303) method = "GET";
+                        data = null; // Don't resend POST data on redirect
+                        continue;
+                    }
+                }
+
+                String body = readResponse(conn);
+                Map<String, List<String>> rawHeaders = conn.getHeaderFields();
+
+                return new Response(code, body, rawHeaders);
+            } catch (Exception e) {
+                return new Response(-1, e.getMessage(), null);
+            }
+        }
+        return new Response(-1, "Too many redirects", null);
+    }
+
+    public static byte[] downloadBytes(String url) {
+        try {
+            HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
+            conn.setRequestMethod("GET");
+            conn.setConnectTimeout(8000);
+            conn.setReadTimeout(8000);
+            conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
+            try (InputStream is = conn.getInputStream();
+                 ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+                byte[] buf = new byte[8192];
+                int n;
+                while ((n = is.read(buf)) != -1) baos.write(buf, 0, n);
+                return baos.toByteArray();
+            }
         } catch (Exception e) {
-            return new Response(-1, e.getMessage(), null);
+            return null;
         }
     }
 }

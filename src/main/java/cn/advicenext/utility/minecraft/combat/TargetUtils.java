@@ -1,5 +1,6 @@
 package cn.advicenext.utility.minecraft.combat;
 
+import cn.advicenext.features.module.impl.combat.AntiBot;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.LivingEntity;
@@ -38,6 +39,7 @@ public class TargetUtils {
         return mc.world.getEntitiesByClass(LivingEntity.class, searchBox, entity -> {
             if (!isValidTarget(entity)) return false;
             if (mc.player.distanceTo(entity) > range) return false;
+            if (entity instanceof PlayerEntity p && AntiBot.isBotStatic(p)) return false;
             return matchesFilter(entity, filter);
         });
     }
@@ -71,6 +73,7 @@ public class TargetUtils {
             .filter(p -> p != mc.player && p.isAlive())
             .filter(p -> mc.player.distanceTo(p) <= range)
             .filter(p -> !p.isInvisible())
+            .filter(p -> !AntiBot.isBotStatic(p))
             .collect(Collectors.toList());
     }
 

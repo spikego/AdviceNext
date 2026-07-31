@@ -5,321 +5,592 @@ import cn.advicenext.features.module.Module;
 import cn.advicenext.features.module.Category;
 import cn.advicenext.features.value.BooleanSetting;
 import cn.advicenext.features.value.ModeSetting;
+import cn.advicenext.features.value.slider.DoubleSetting;
 import cn.advicenext.features.value.slider.IntSetting;
 import cn.advicenext.utility.minecraft.player.RotationUtils;
-import net.minecraft.block.Block;
+import cn.advicenext.utility.minecraft.world.BlockUtils;
 import net.minecraft.block.BlockState;
-import net.minecraft.block.Blocks;
-import net.minecraft.item.BlockItem;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.Hand;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
+import org.lwjgl.glfw.GLFW;
 
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Random;
 
 public class Clutch extends Module {
-    private final IntSetting placeDelay = new IntSetting("Place Delay", "Place block dealy.", 0, 4, 0, 1);
-    private final IntSetting chance = new IntSetting("Chance", "Chance to place block.", 0, 100, 0, 1);
-    private final IntSetting maxBlocks = new IntSetting("Max Blocks", "Max blocks to place.", 6, 8, 1, 1);
-    private final BooleanSetting SilentRotation = new BooleanSetting("Silent Rotation", "Silent rotation.", true);
-    private final BooleanSetting movementFix = new BooleanSetting("movementFix", "fix movement.", true);
-    private final ModeSetting switchMode = new ModeSetting("Switch Mode", "Switch mode.", "Silent", List.of("Auto", "Silent", "None"));
-    
-    private boolean isFalling = false;
-    private int blocksPlaced = 0;
-    private long lastPlaceTime = 0;
+    private final DoubleSetting reach = new DoubleSetting("Reach", "Reach distance", 4.5, 0.5, 4.5, 0.1);
+    private final IntSetting speed = new IntSetting("Speed", "Rotation speed", 8, 0, 100, 1);
+    private final IntSetting snapbackSpeed = new IntSetting("Snapback Speed", "Speed to snap back", 12, 0, 100, 1);
+    private final IntSetting maxDistance = new IntSetting("Max Distance", "Max blocks to place", 10, 0, 20, 1);
+    private final IntSetting rotationTolerance = new IntSetting("Rotation Tolerance", "Tolerance for placement", 25, 20, 100, 1);
+    private final ModeSetting switchBlock = new ModeSetting("Switch Block", "Block switching mode", "Client",
+            List.of("Client", "Server"));
+    private final BooleanSetting simulateFuturePosition = new BooleanSetting("Simulate Future", "Simulate future position", true);
+    private final BooleanSetting autoClutch = new BooleanSetting("Auto Clutch", "Auto clutch when knocked off", false);
+    private final IntSetting minimumFallDistance = new IntSetting("Min Fall Distance", "Min fall distance for auto", 10, 3, 20, 1);
+    private final ModeSetting activationMode = new ModeSetting("Activation", "How to activate clutch",
+            "Toggle", List.of("Toggle", "Auto", "KeyHold"));
+    private final IntSetting holdKey = new IntSetting("HoldKey", "Key to hold for clutch (KeyHold mode)", GLFW.GLFW_KEY_G, 0, 350, 1,
+            () -> activationMode.is("KeyHold"));
+
+    private static final double HALF_WIDTH = 0.3;
+    private static final double[][] CORNERS = {{-HALF_WIDTH, -HALF_WIDTH}, {HALF_WIDTH, -HALF_WIDTH}, {-HALF_WIDTH, HALF_WIDTH}, {HALF_WIDTH, HALF_WIDTH}};
+
+    private BlockPos targetHitPos;
+    private Direction targetSide;
+    private float aimYaw;
+    private float aimPitch;
+    private boolean hasAim;
+    private boolean resetting;
+    private boolean slotWasSwapped;
+    private int prevSlot = -1;
+    private int plannedSlot = -1;
     private int originalSlot = -1;
-    private BlockPos lastPlacedPos = null;
-    private final Random random = new Random();
-    
+    private int serverSlot = -1;
+    private BlockPos lastPlaced;
+    private int clutchBlocksPlaced;
+    private boolean autoClutchActive;
+    private boolean autoClutchChecking;
+    private int autoClutchCheckCounter;
+    private boolean autoClutchLandedGuard;
+    private int autoClutchLandedTick;
+    private int prevHurtTime = -1;
+
     public Clutch() {
         super("Clutch", "Automatically places blocks under you when falling", Category.WORLD);
-        this.settings.add(placeDelay);
-        this.settings.add(chance);
-        this.settings.add(maxBlocks);
-        this.settings.add(SilentRotation);
-        this.settings.add(movementFix);
-        this.settings.add(switchMode);
+        this.settings.add(reach);
+        this.settings.add(speed);
+        this.settings.add(snapbackSpeed);
+        this.settings.add(maxDistance);
+        this.settings.add(rotationTolerance);
+        this.settings.add(switchBlock);
+        this.settings.add(simulateFuturePosition);
+        this.settings.add(autoClutch);
+        this.settings.add(minimumFallDistance);
+        this.settings.add(activationMode);
+        this.settings.add(holdKey);
     }
-    
+
     @Override
     public void onEnable() {
-        isFalling = false;
-        blocksPlaced = 0;
-        lastPlaceTime = 0;
+        hasAim = false;
+        resetting = false;
+        clutchBlocksPlaced = 0;
+        autoClutchActive = false;
+        autoClutchChecking = false;
+        autoClutchCheckCounter = 0;
+        autoClutchLandedGuard = false;
+        autoClutchLandedTick = 0;
+        prevHurtTime = -1;
+        prevSlot = -1;
+        plannedSlot = -1;
         originalSlot = -1;
-        lastPlacedPos = null;
+        serverSlot = -1;
+        lastPlaced = null;
         RotationUtils.resetSilentRotation();
     }
-    
+
     @Override
     public void onDisable() {
-        // 如果是Silent模式，恢复原来的物品栏选择
-        if (originalSlot != -1 && mc.player != null && switchMode.getValue().equals("Silent")) {
-            mc.player.getInventory().setSelectedSlot(originalSlot);
+        if (switchBlock.is("Server") && originalSlot != -1 && mc.player != null) {
+            BlockUtils.silentSwapToSlot(originalSlot);
             originalSlot = -1;
+            serverSlot = -1;
         }
-        
-        isFalling = false;
-        blocksPlaced = 0;
-        lastPlacedPos = null;
+        clearAim(true);
+        slotWasSwapped = false;
+        prevSlot = -1;
+        plannedSlot = -1;
+        autoClutchActive = false;
+        autoClutchChecking = false;
+        autoClutchLandedGuard = false;
         RotationUtils.resetSilentRotation();
     }
-    
+
     @Override
     public void onTick(TickEvent event) {
         if (mc.player == null || mc.world == null) return;
-        
-        // 检测玩家是否在下落
-        boolean currentlyFalling = mc.player.fallDistance > 2.0f && !mc.player.isOnGround() && 
-                                  !mc.player.isUsingItem() && !mc.player.isClimbing() && !mc.player.isTouchingWater();
-        
-        // 检测是否在虚空中
-        boolean inVoid = mc.player.getY() < mc.world.getBottomY();
-        
-        // 如果玩家开始下落或在虚空中
-        if ((currentlyFalling || inVoid) && !isFalling) {
-            isFalling = true;
-            blocksPlaced = 0;
-            lastPlaceTime = System.currentTimeMillis();
+
+        if (mc.player.isOnGround()) {
+            clutchBlocksPlaced = 0;
         }
-        
-        // 如果玩家停止下落
-        if (!currentlyFalling && !inVoid && isFalling) {
-            resetClutchState();
+
+        updateAutoClutch();
+
+        boolean active = isActivated();
+        if (mc.currentScreen != null || !active) {
+            clearAim(true);
             return;
         }
-        
-        // 如果玩家正在下落，尝试放置方块
-        if (isFalling) {
-            // 检查随机几率
-            if (chance.getValue() < 100 && random.nextInt(100) >= chance.getValue()) {
-                return;
-            }
-            
-            // 检查延迟
-            if (System.currentTimeMillis() - lastPlaceTime < placeDelay.getValue() * 50) {
-                return;
-            }
-            
-            // 检查已放置方块数量
-            if (blocksPlaced >= maxBlocks.getValue()) {
-                resetClutchState();
-                return;
-            }
-            
-            // 尝试放置方块 - 始终使用方块自救
+
+        BlockPos below = mc.player.getBlockPos().down();
+        if (!canPlaceThrough(below)) {
+            clearAim(false);
+            return;
+        }
+
+        int blockSlot = BlockUtils.findBestBlockSlot();
+        if (blockSlot == -1) {
+            clearAim(false);
+            return;
+        }
+
+        plannedSlot = blockSlot;
+
+        AimResult aim = clutchAim();
+        if (aim != null) {
+            targetHitPos = aim.ray.getBlockPos();
+            targetSide = aim.ray.getSide();
+            aimYaw = aim.yaw;
+            aimPitch = aim.pitch;
+            hasAim = true;
+            resetting = false;
+        }
+
+        if (hasAim && !resetting) {
+            applyRotation();
+            equipPlannedSlot();
             tryPlaceBlock();
         }
     }
-    
-    private void resetClutchState() {
-        isFalling = false;
-        blocksPlaced = 0;
-        lastPlacedPos = null;
-        
-        // 如果是Silent模式，恢复原来的物品栏选择
-        if (originalSlot != -1 && switchMode.getValue().equals("Silent")) {
-            mc.player.getInventory().setSelectedSlot(originalSlot);
-            originalSlot = -1;
-        }
-        
-        RotationUtils.resetSilentRotation();
-    }
-    
-    private void tryPlaceBlock() {
-        // 查找可放置的方块位置
-        BlockPos targetPos = findPlacePosition();
-        if (targetPos == null) return;
-        
-        // 查找可用的方块 - 必须有方块才能自救
-        int blockSlot = findBlockInHotbar();
-        if (blockSlot == -1) return;
-        
-        // 保存原始选择的物品栏
-        String currentMode = switchMode.getValue();
-        if (currentMode.equals("Silent") && originalSlot == -1) {
-            originalSlot = mc.player.getInventory().getSelectedSlot();
-        }
-        
-        // 切换到方块
-        int prevSlot = mc.player.getInventory().getSelectedSlot();
-        if (currentMode.equals("Auto") || currentMode.equals("Silent")) {
-            mc.player.getInventory().setSelectedSlot(blockSlot);
-        } else if (currentMode.equals("None") && !(mc.player.getMainHandStack().getItem() instanceof BlockItem)) {
-            // None模式下不切换物品栏，但必须有方块
+
+    private void updateAutoClutch() {
+        if (!autoClutch.getValue()) {
+            autoClutchActive = false;
+            autoClutchChecking = false;
+            autoClutchLandedGuard = false;
+            prevHurtTime = mc.player.hurtTime;
             return;
         }
-        
-        // 计算放置方向
-        Direction direction = getPlaceDirection(targetPos);
-        if (direction == null) return;
-        
-        // 计算目标方块的相邻方块
-        BlockPos neighborPos = targetPos.offset(direction);
-        
-        // 应用旋转 - 使用RotateUtils.setSilentRotation方法
-        if (SilentRotation.getValue()) {
-            RotationUtils.Rotation rotation = calculateRotation(neighborPos, direction);
-            RotationUtils.setSilentRotation(rotation);
+
+        int curHurtTime = mc.player.hurtTime;
+        if (curHurtTime > prevHurtTime) {
+            autoClutchChecking = true;
+            autoClutchCheckCounter = 0;
+            autoClutchLandedGuard = false;
         }
-        
-        // 应用移动修复 - 只有在启用movementFix时才考虑移动合法性
-        if (movementFix.getValue() && !SilentRotation.getValue()) {
-            // 停止水平移动
-            mc.player.setVelocity(0, mc.player.getVelocity().y, 0);
-            
-            // 将玩家移动到方块中心
-            double centerX = targetPos.getX() + 0.5;
-            double centerZ = targetPos.getZ() + 0.5;
-            mc.player.updatePosition(centerX, mc.player.getY(), centerZ);
-        }
-        
-        // 创建方块放置结果
-        BlockHitResult hitResult = new BlockHitResult(
-                new Vec3d(neighborPos.getX() + 0.5, neighborPos.getY() + 0.5, neighborPos.getZ() + 0.5),
-                direction.getOpposite(),
-                neighborPos,
-                false
-        );
-        
-        // 放置方块
-        mc.interactionManager.interactBlock(mc.player, Hand.MAIN_HAND, hitResult);
-        mc.player.swingHand(Hand.MAIN_HAND);
-        
-        // 记录放置时间和位置
-        lastPlaceTime = System.currentTimeMillis();
-        lastPlacedPos = targetPos;
-        blocksPlaced++;
-        
-        // 验证方块是否成功放置
-        verifyBlockPlacement(targetPos);
-        
-        // 如果是Silent模式，立即切换回原来的物品栏
-        if (currentMode.equals("Silent")) {
-            mc.player.getInventory().setSelectedSlot(prevSlot);
-        }
-    }
-    
-    private void verifyBlockPlacement(BlockPos pos) {
-        // 等待一个游戏刻以确保方块状态更新
-        mc.execute(() -> {
-            if (mc.world != null) {
-                BlockState state = mc.world.getBlockState(pos);
-                if (state.isAir()) {
-                    // 方块放置失败，尝试再次放置
-                    if (blocksPlaced > 0) blocksPlaced--;
+        prevHurtTime = curHurtTime;
+
+        if (autoClutchChecking && !autoClutchActive && !autoClutchLandedGuard) {
+            if (autoClutchCheckCounter == 0 || autoClutchCheckCounter % 3 == 0) {
+                if (willFallFar(minimumFallDistance.getValue())) {
+                    autoClutchActive = true;
                 }
             }
-        });
-    }
-    
-    private BlockPos findPlacePosition() {
-        if (mc.player == null) return null;
-        
-        // 获取玩家脚下的方块位置
-        BlockPos playerPos = mc.player.getBlockPos().down();
-        
-        // 检查该位置是否可以放置方块
-        if (canPlaceBlockAt(playerPos)) {
-            return playerPos;
+            autoClutchCheckCounter++;
         }
-        
-        // 如果玩家脚下不能放置，检查周围的方块
-        for (Direction direction : Direction.values()) {
-            if (direction == Direction.UP) continue; // 不检查上方
-            
-            BlockPos offsetPos = playerPos.offset(direction);
-            if (canPlaceBlockAt(offsetPos)) {
-                return offsetPos;
+
+        if (autoClutchLandedGuard) {
+            int ticksExisted = mc.player.age;
+            boolean expired = ticksExisted - autoClutchLandedTick >= 10;
+            boolean jumped = mc.options.jumpKey.isPressed();
+            boolean airborneUp = !mc.player.isOnGround() && mc.player.getVelocity().y > 0;
+            if (expired || jumped || airborneUp) {
+                autoClutchActive = false;
+                autoClutchChecking = false;
+                autoClutchLandedGuard = false;
             }
         }
-        
-        return null;
-    }
-    
-    private boolean canPlaceBlockAt(BlockPos pos) {
-        if (mc.world == null) return false;
-        
-        // 检查位置是否已经有方块
-        if (!mc.world.getBlockState(pos).isAir()) {
-            return false;
-        }
-        
-        // 检查是否有相邻方块可以依附
-        for (Direction direction : Direction.values()) {
-            BlockPos neighborPos = pos.offset(direction);
-            BlockState neighborState = mc.world.getBlockState(neighborPos);
-            
-            if (!neighborState.isAir() && !neighborState.getBlock().equals(Blocks.FIRE) && 
-                !neighborState.getBlock().equals(Blocks.LAVA) && !neighborState.getBlock().equals(Blocks.WATER)) {
-                return true;
+
+        if (autoClutchActive && mc.player.isOnGround() && mc.player.hurtTime < mc.player.maxHurtTime - 2) {
+            if (!autoClutchLandedGuard) {
+                autoClutchLandedGuard = true;
+                autoClutchLandedTick = mc.player.age;
+                if (!willFallSoon()) {
+                    autoClutchActive = false;
+                    autoClutchChecking = false;
+                    autoClutchLandedGuard = false;
+                }
             }
         }
-        
+
+        if (!autoClutchActive && !autoClutchLandedGuard && mc.player.isOnGround() && mc.player.hurtTime == 0) {
+            autoClutchChecking = false;
+            autoClutchCheckCounter = 0;
+        }
+    }
+
+    private boolean isActivated() {
+        return switch (activationMode.getValue()) {
+            case "Toggle" -> true;
+            case "Auto" -> autoClutchActive;
+            case "KeyHold" -> {
+                long window = mc.getWindow().getHandle();
+                yield org.lwjgl.glfw.GLFW.glfwGetKey(window, holdKey.getValue()) == GLFW.GLFW_PRESS;
+            }
+            default -> true;
+        };
+    }
+
+    private void applyRotation() {
+        if (resetting) {
+            float currentYaw = RotationUtils.getServerYaw();
+            float currentPitch = RotationUtils.getServerPitch();
+            float[] smoothed = getRotationsSmoothed(currentYaw, currentPitch, mc.player.getYaw(), mc.player.getPitch(), true);
+            RotationUtils.setSilentRotation(new RotationUtils.Rotation(smoothed[0], smoothed[1]));
+
+            if (Math.abs(MathHelper.wrapDegrees(smoothed[0] - mc.player.getYaw())) < 0.5f
+                    && Math.abs(smoothed[1] - mc.player.getPitch()) < 0.5f) {
+                resetting = false;
+                hasAim = false;
+            }
+            return;
+        }
+
+        float currentYaw = RotationUtils.getServerYaw();
+        float currentPitch = RotationUtils.getServerPitch();
+        float[] smoothed = getRotationsSmoothed(currentYaw, currentPitch, aimYaw, aimPitch, false);
+        RotationUtils.setSilentRotation(new RotationUtils.Rotation(smoothed[0], smoothed[1]));
+    }
+
+    private void tryPlaceBlock() {
+        if (targetHitPos == null || targetSide == null) return;
+
+        int maxBlocks = maxDistance.getValue();
+        if (maxBlocks > 0 && clutchBlocksPlaced >= maxBlocks) return;
+
+        float servYaw = RotationUtils.getServerYaw();
+        float servPitch = RotationUtils.getServerPitch();
+        BlockHitResult mop = rayCastBlock(reach.getValue(), servYaw, servPitch);
+
+        if (mop != null && targetHitPos.equals(mop.getBlockPos()) && targetSide == mop.getSide()) {
+            double tolerance = rotationTolerance.getValue();
+            if (Math.abs(MathHelper.wrapDegrees(servYaw - aimYaw)) <= tolerance
+                    && Math.abs(servPitch - aimPitch) <= tolerance) {
+                mc.interactionManager.interactBlock(mc.player, Hand.MAIN_HAND, mop);
+                mc.player.swingHand(Hand.MAIN_HAND);
+
+                if (mop.getSide() != Direction.UP) {
+                    clutchBlocksPlaced++;
+                }
+                lastPlaced = targetHitPos;
+            }
+        }
+    }
+
+    private void equipPlannedSlot() {
+        if (plannedSlot < 0 || plannedSlot > 8) return;
+        int currentSlot = mc.player.getInventory().getSelectedSlot();
+
+        if (switchBlock.is("Server")) {
+            if (originalSlot == -1) originalSlot = currentSlot;
+            if (serverSlot != plannedSlot) {
+                BlockUtils.silentSwapToSlot(plannedSlot);
+                serverSlot = plannedSlot;
+                slotWasSwapped = true;
+            }
+        } else {
+            if (prevSlot == -1) prevSlot = currentSlot;
+            if (currentSlot != plannedSlot) {
+                BlockUtils.swapToSlot(plannedSlot);
+                slotWasSwapped = true;
+            }
+        }
+    }
+
+    private void clearAim(boolean allowSnapback) {
+        if (slotWasSwapped && prevSlot != -1 && prevSlot != mc.player.getInventory().getSelectedSlot()) {
+            if (switchBlock.is("Server")) {
+                BlockUtils.silentSwapToSlot(prevSlot);
+                serverSlot = prevSlot;
+            } else {
+                BlockUtils.swapToSlot(prevSlot);
+            }
+            slotWasSwapped = false;
+        }
+        targetHitPos = null;
+        targetSide = null;
+        lastPlaced = null;
+        clutchBlocksPlaced = 0;
+        if (allowSnapback && hasAim) {
+            resetting = true;
+        }
+        hasAim = false;
+        prevSlot = -1;
+        plannedSlot = -1;
+    }
+
+    private float[] getRotationsSmoothed(float currentYaw, float currentPitch, float targetYaw, float targetPitch, boolean isSnapback) {
+        float spd = isSnapback ? snapbackSpeed.getValue() : speed.getValue();
+        float maxTurn = 1.5F + MathHelper.clamp(spd, 0.0F, 100.0F) * 0.585F;
+
+        float yawDiff = MathHelper.wrapDegrees(targetYaw - currentYaw);
+        float pitchDiff = MathHelper.clamp(targetPitch, -90.0F, 90.0F) - currentPitch;
+
+        float stepYaw = Math.copySign(Math.min(Math.abs(yawDiff), maxTurn), yawDiff);
+        float stepPitch = Math.copySign(Math.min(Math.abs(pitchDiff), maxTurn * 0.7F), pitchDiff);
+
+        return new float[]{
+            currentYaw + stepYaw,
+            MathHelper.clamp(currentPitch + stepPitch, -90.0F, 90.0F)
+        };
+    }
+
+    private BlockHitResult rayCastBlock(double reachVal, float yaw, float pitch) {
+        Vec3d eye = mc.player.getEyePos();
+        float radPitch = pitch * 0.017453292F;
+        float radYaw = -yaw * 0.017453292F;
+        float cosPitch = MathHelper.cos(radPitch);
+        float sinPitch = MathHelper.sin(radPitch);
+        float cosYaw = MathHelper.cos(radYaw);
+        float sinYaw = MathHelper.sin(radYaw);
+        Vec3d look = new Vec3d(sinYaw * cosPitch, -sinPitch, cosYaw * cosPitch);
+        Vec3d end = eye.add(look.x * reachVal, look.y * reachVal, look.z * reachVal);
+
+        return mc.world.raycast(new net.minecraft.world.RaycastContext(
+                eye, end,
+                net.minecraft.world.RaycastContext.ShapeType.OUTLINE,
+                net.minecraft.world.RaycastContext.FluidHandling.NONE,
+                mc.player
+        ));
+    }
+
+    private boolean canPlaceThrough(BlockPos pos) {
+        BlockState state = mc.world.getBlockState(pos);
+        return state.isAir() || state.isLiquid() || state.isReplaceable();
+    }
+
+    private boolean willFallFar(double minFall) {
+        double startY = mc.player.getY();
+        PredictionState pred = new PredictionState().fromPlayer();
+        for (int t = 0; t < 60; t++) {
+            pred.tick(false);
+            if (pred.onGround) return false;
+            double fall = startY - pred.posY;
+            if (fall > minFall) return true;
+        }
         return false;
     }
-    
-    private Direction getPlaceDirection(BlockPos pos) {
-        if (mc.world == null) return null;
-        
-        // 检查每个方向是否有可以依附的方块
-        for (Direction direction : Direction.values()) {
-            BlockPos neighborPos = pos.offset(direction);
-            BlockState neighborState = mc.world.getBlockState(neighborPos);
-            
-            if (!neighborState.isAir() && !neighborState.getBlock().equals(Blocks.FIRE) && 
-                !neighborState.getBlock().equals(Blocks.LAVA) && !neighborState.getBlock().equals(Blocks.WATER)) {
-                return direction;
+
+    private boolean willFallSoon() {
+        PredictionState pred = new PredictionState().fromPlayer();
+        for (int t = 0; t < 10; t++) {
+            pred.tick(true);
+            if (!pred.onGround && pred.motionY < 0) return true;
+        }
+        return false;
+    }
+
+    private AimResult clutchAim() {
+        Vec3d playerPos = new Vec3d(mc.player.getX(), mc.player.getY(), mc.player.getZ());
+        Vec3d eye = mc.player.getEyePos();
+
+        Vec3d futurePos = playerPos;
+        if (simulateFuturePosition.getValue()) {
+            PredictionState pred = new PredictionState().fromPlayer();
+            for (int t = 0; t < 20; t++) {
+                pred.tick(false);
+                if (pred.posY < playerPos.y - 2 || pred.onGround) break;
+            }
+            futurePos = pred.getPos();
+        }
+
+        int feetX = MathHelper.floor(playerPos.x);
+        int feetZ = MathHelper.floor(playerPos.z);
+        int feetY = MathHelper.floor(playerPos.y);
+        int minX = feetX - 5;
+        int maxX = feetX + 4;
+        int minZ = feetZ - 5;
+        int maxZ = feetZ + 4;
+        int maxY = feetY - 1;
+        int minY = feetY - 4;
+
+        List<BlockCandidate> candidates = new ArrayList<>();
+        for (int y = maxY; y >= minY; y--) {
+            for (int x = minX; x <= maxX; x++) {
+                for (int z = minZ; z <= maxZ; z++) {
+                    BlockPos pos = new BlockPos(x, y, z);
+                    if (canPlaceThrough(pos)) continue;
+
+                    double currentDist = dist2PointAABB(playerPos, pos);
+                    double futureDist = dist2PointAABB(futurePos, pos);
+                    double score = simulateFuturePosition.getValue() ? (currentDist * 0.3 + futureDist * 0.7) : currentDist;
+                    if (pos.equals(lastPlaced)) score *= 0.95;
+                    candidates.add(new BlockCandidate(score, pos));
+                }
             }
         }
-        
+
+        candidates.sort((a, b) -> Double.compare(a.score, b.score));
+
+        ItemStack held = plannedSlot >= 0 && plannedSlot <= 8
+                ? mc.player.getInventory().getStack(plannedSlot) : null;
+
+        for (BlockCandidate candidate : candidates) {
+            boolean underPlayer = isBlockUnderPlayer(candidate.pos, playerPos);
+            AimResult result = getBestRotationsToBlock(held, candidate.pos, eye, reach.getValue(), underPlayer);
+            if (result != null) return result;
+        }
         return null;
     }
-    
-    private int findBlockInHotbar() {
-        if (mc.player == null) return -1;
-        
-        // 检查主手是否已经持有方块
-        ItemStack mainHandStack = mc.player.getMainHandStack();
-        if (mainHandStack.getItem() instanceof BlockItem && isValidBlock(((BlockItem) mainHandStack.getItem()).getBlock())) {
-            return mc.player.getInventory().getSelectedSlot();
+
+    private boolean isBlockUnderPlayer(BlockPos pos, Vec3d playerPos) {
+        if (pos.getY() >= MathHelper.floor(playerPos.y)) return false;
+        for (double[] corner : CORNERS) {
+            int cx = MathHelper.floor(playerPos.x + corner[0]);
+            int cz = MathHelper.floor(playerPos.z + corner[1]);
+            if (pos.getX() == cx && pos.getZ() == cz) return true;
         }
-        
-        // 检查快捷栏中的方块
-        for (int i = 0; i < 9; i++) {
-            ItemStack stack = mc.player.getInventory().getStack(i);
-            if (stack.getItem() instanceof BlockItem && isValidBlock(((BlockItem) stack.getItem()).getBlock())) {
-                return i;
+        return false;
+    }
+
+    private AimResult getBestRotationsToBlock(ItemStack held, BlockPos pos, Vec3d eye, double reachVal, boolean underPlayer) {
+        double inset = 0.05;
+        double step = 0.2;
+        double jitter = step * 0.1;
+        boolean faceSouth = Math.abs(eye.z - (pos.getZ() + 1)) < Math.abs(eye.z - pos.getZ());
+        boolean faceEast = Math.abs(eye.x - (pos.getX() + 1)) < Math.abs(eye.x - pos.getX());
+        float baseYaw = RotationUtils.getServerYaw();
+        float basePitch = RotationUtils.getServerPitch();
+        int n = (int) Math.round(1 / step);
+
+        List<RotationCandidate> candidates = new ArrayList<>();
+        candidates.add(new RotationCandidate(0, baseYaw, basePitch));
+
+        for (int row = 0; row <= n; row++) {
+            double v = clamp01(row * step + randomRange(-jitter, jitter));
+            for (int col = 0; col <= n; col++) {
+                double u = clamp01(col * step + randomRange(-jitter, jitter));
+
+                if (underPlayer) {
+                    float[] rV = getRotationsWrapped(eye, pos.getX() + u, pos.getY() + 1 - inset, pos.getZ() + v);
+                    double costV = Math.abs(wrapYawDelta(baseYaw, rV[0])) + Math.abs(rV[1] - basePitch);
+                    candidates.add(new RotationCandidate(costV, rV[0], rV[1]));
+                }
+
+                float[] rZ = getRotationsWrapped(eye, pos.getX() + u, pos.getY() + v,
+                        faceSouth ? pos.getZ() + 1 - inset : pos.getZ() + inset);
+                double costZ = Math.abs(wrapYawDelta(baseYaw, rZ[0])) + Math.abs(rZ[1] - basePitch);
+                candidates.add(new RotationCandidate(costZ, rZ[0], rZ[1]));
+
+                float[] rX = getRotationsWrapped(eye,
+                        faceEast ? pos.getX() + 1 - inset : pos.getX() + inset,
+                        pos.getY() + v, pos.getZ() + u);
+                double costX = Math.abs(wrapYawDelta(baseYaw, rX[0])) + Math.abs(rX[1] - basePitch);
+                candidates.add(new RotationCandidate(costX, rX[0], rX[1]));
             }
         }
-        
-        return -1;
+
+        candidates.sort((a, b) -> Double.compare(a.cost, b.cost));
+
+        for (RotationCandidate candidate : candidates) {
+            BlockHitResult mop = rayCastBlock(reachVal, candidate.yaw, candidate.pitch);
+            if (mop != null && mop.getBlockPos().equals(pos)) {
+                return new AimResult(mop, candidate.yaw, candidate.pitch);
+            }
+        }
+        return null;
     }
-    
-    private boolean isValidBlock(Block block) {
-        // 检查方块是否适合放置（排除不稳定的方块）
-        return !block.equals(Blocks.SAND) && 
-               !block.equals(Blocks.GRAVEL) && 
-               !block.equals(Blocks.ANVIL) && 
-               !block.equals(Blocks.DRAGON_EGG) && 
-               !block.equals(Blocks.SCAFFOLDING);
+
+    private float[] getRotationsWrapped(Vec3d eye, double x, double y, double z) {
+        double dx = x - eye.x;
+        double dy = y - eye.y;
+        double dz = z - eye.z;
+        double dist = Math.sqrt(dx * dx + dz * dz);
+        float yaw = (float) (Math.toDegrees(Math.atan2(dz, dx)) - 90.0);
+        float pitch = (float) -Math.toDegrees(Math.atan2(dy, dist));
+        return new float[]{yaw, pitch};
     }
-    
-    private RotationUtils.Rotation calculateRotation(BlockPos pos, Direction direction) {
-        // 计算目标位置
-        Vec3d eyePos = mc.player.getEyePos();
-        Vec3d targetPos = new Vec3d(
-                pos.getX() + 0.5 + direction.getOpposite().getOffsetX() * 0.5,
-                pos.getY() + 0.5 + direction.getOpposite().getOffsetY() * 0.5,
-                pos.getZ() + 0.5 + direction.getOpposite().getOffsetZ() * 0.5
-        );
-        
-        // 使用RotateUtils的getRotationToPos方法计算旋转
-        return RotationUtils.getRotationToPos(targetPos, eyePos);
+
+    private double dist2PointAABB(Vec3d p, BlockPos b) {
+        double cx = Math.max(b.getX(), Math.min(b.getX() + 1, p.x));
+        double cy = Math.max(b.getY(), Math.min(b.getY() + 1, p.y));
+        double cz = Math.max(b.getZ(), Math.min(b.getZ() + 1, p.z));
+        double dx = p.x - cx, dy = p.y - cy, dz = p.z - cz;
+        return dx * dx + dy * dy + dz * dz;
+    }
+
+    private static float wrapYawDelta(float a, float b) {
+        return Math.abs(MathHelper.wrapDegrees(a - b));
+    }
+
+    private static double clamp01(double val) {
+        return Math.max(0, Math.min(1, val));
+    }
+
+    private static double randomRange(double min, double max) {
+        return min + Math.random() * (max - min);
+    }
+
+    private class PredictionState {
+        double posX, posY, posZ;
+        double motionX, motionY, motionZ;
+        boolean onGround;
+
+        PredictionState fromPlayer() {
+            PredictionState p = new PredictionState();
+            p.posX = mc.player.getX();
+            p.posY = mc.player.getY();
+            p.posZ = mc.player.getZ();
+            p.motionX = mc.player.getVelocity().x;
+            p.motionY = mc.player.getVelocity().y;
+            p.motionZ = mc.player.getVelocity().z;
+            p.onGround = mc.player.isOnGround();
+            return p;
+        }
+
+        void tick(boolean ignoreGround) {
+            if (!ignoreGround && onGround && motionY <= 0) {
+                motionY = 0;
+                motionX *= 0.6;
+                motionZ *= 0.6;
+            } else {
+                motionY -= 0.08;
+                motionY *= 0.98;
+                motionX *= 0.91;
+                motionZ *= 0.91;
+            }
+            posX += motionX;
+            posY += motionY;
+            posZ += motionZ;
+
+            BlockPos below = new BlockPos(MathHelper.floor(posX), MathHelper.floor(posY - 0.2), MathHelper.floor(posZ));
+            BlockState state = mc.world.getBlockState(below);
+            boolean solid = state.isSolidBlock(mc.world, below);
+            onGround = solid && posY - MathHelper.floor(posY) < 0.3;
+        }
+
+        Vec3d getPos() {
+            return new Vec3d(posX, posY, posZ);
+        }
+    }
+
+    private static class BlockCandidate {
+        double score;
+        BlockPos pos;
+
+        BlockCandidate(double score, BlockPos pos) {
+            this.score = score;
+            this.pos = pos;
+        }
+    }
+
+    private static class RotationCandidate {
+        double cost;
+        float yaw;
+        float pitch;
+
+        RotationCandidate(double cost, float yaw, float pitch) {
+            this.cost = cost;
+            this.yaw = yaw;
+            this.pitch = pitch;
+        }
+    }
+
+    private static class AimResult {
+        BlockHitResult ray;
+        float yaw;
+        float pitch;
+
+        AimResult(BlockHitResult ray, float yaw, float pitch) {
+            this.ray = ray;
+            this.yaw = yaw;
+            this.pitch = pitch;
+        }
     }
 }

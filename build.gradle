@@ -29,6 +29,10 @@ fabricApi {
 	}
 }
 
+loom {
+	accessWidenerPath = file("src/main/resources/advicenext.accesswidener")
+}
+
 
 dependencies {
 	// To change the versions see the gradle.properties file
@@ -47,6 +51,8 @@ dependencies {
 	// WebSocket dependencies
 	modImplementation "org.java-websocket:Java-WebSocket:1.5.3"
 	modImplementation "com.google.code.gson:gson:2.10.1"
+	modImplementation "com.google.zxing:core:3.5.3"
+	include "com.google.zxing:core:3.5.3"
 
 	//lwjgl
 	modImplementation "org.lwjgl:lwjgl-harfbuzz:3.3.3"
@@ -77,6 +83,12 @@ dependencies {
 	include 'com.github.CCBlueX:mc-authlib:1.4.1'
 	modImplementation 'it.unimi.dsi:fastutil:8.5.12'
 	include 'it.unimi.dsi:fastutil:8.5.12'
+
+	// MP3 audio support
+	modImplementation 'com.googlecode.soundlibs:mp3spi:1.9.5.4'
+	include 'com.googlecode.soundlibs:mp3spi:1.9.5.4'
+	include 'com.googlecode.soundlibs:jlayer:1.0.1.4'
+	include 'com.googlecode.soundlibs:tritonus-share:0.3.7.4'
 
 }
 

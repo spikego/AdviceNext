@@ -5,10 +5,9 @@ import cn.advicenext.features.module.Category;
 import cn.advicenext.features.module.Module;
 import cn.advicenext.features.value.ModeSetting;
 import cn.advicenext.features.value.slider.RangeSetting;
-import net.minecraft.util.Hand;
-import net.minecraft.util.hit.EntityHitResult;
-import net.minecraft.util.hit.HitResult;
+import cn.advicenext.utility.client.input.MouseAccessor;
 import net.minecraft.item.consume.UseAction;
+import org.lwjgl.glfw.GLFW;
 
 import java.util.List;
 import java.util.Random;
@@ -53,7 +52,7 @@ public class AutoClicker extends Module {
     public void onTick(TickEvent event) {
         if (!this.enabled) return;
         if (mc.player == null || mc.currentScreen != null) return;
-        if (!mc.options.attackKey.isPressed()) return;
+        if (GLFW.glfwGetMouseButton(mc.getWindow().getHandle(), GLFW.GLFW_MOUSE_BUTTON_1) != GLFW.GLFW_PRESS) return;
 
         // 格挡时不点击
         if (mc.player.isUsingItem() && mc.player.getActiveItem().getUseAction() == UseAction.BLOCK) {
@@ -69,13 +68,7 @@ public class AutoClicker extends Module {
     }
 
     private void doClick() {
-        mc.player.swingHand(Hand.MAIN_HAND);
-        if (mc.crosshairTarget != null && mc.crosshairTarget.getType() == HitResult.Type.ENTITY) {
-            EntityHitResult entityHit = (EntityHitResult) mc.crosshairTarget;
-            if (mc.interactionManager != null) {
-                mc.interactionManager.attackEntity(mc.player, entityHit.getEntity());
-            }
-        }
+        ((MouseAccessor) mc.mouse).adviceNext$simulateLeftClick();
     }
 
     private long computeNextDelay() {

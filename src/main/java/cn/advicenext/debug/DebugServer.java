@@ -1,6 +1,11 @@
 package cn.advicenext.debug;
 
 import cn.advicenext.config.ConfigManager;
+import cn.advicenext.event.EventBus;
+import cn.advicenext.event.Listener;
+import cn.advicenext.event.impl.ChatEvent;
+import cn.advicenext.event.impl.PacketEvent;
+import cn.advicenext.event.impl.TickEvent;
 import cn.advicenext.features.module.Module;
 import cn.advicenext.features.module.ModuleManager;
 import cn.advicenext.features.value.AbstractSetting;
@@ -16,6 +21,7 @@ import com.sun.net.httpserver.HttpServer;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.util.ScreenshotRecorder;
 import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.network.packet.s2c.play.GameMessageS2CPacket;
 import net.minecraft.text.Text;
 
 import java.io.IOException;
@@ -32,8 +38,17 @@ public class DebugServer {
     private final List<String> logMessages = new CopyOnWriteArrayList<>();
     private final List<String> chatMessages = new CopyOnWriteArrayList<>();
     private final List<String> movementLogs = new CopyOnWriteArrayList<>();
+    private final List<Double> speedHistory = new CopyOnWriteArrayList<>();
+    private final List<Integer> packetInHistory = new CopyOnWriteArrayList<>();
+    private final List<Integer> packetOutHistory = new CopyOnWriteArrayList<>();
+    private final List<Integer> latencyHistory = new CopyOnWriteArrayList<>();
+    private final List<Double> yawHistory = new CopyOnWriteArrayList<>();
+    private final List<Double> pitchHistory = new CopyOnWriteArrayList<>();
     private boolean isRunning = false;
     private boolean[] movementStates = new boolean[6];
+    private int tickCounter = 0;
+    private int packetsInThisSecond = 0;
+    private int packetsOutThisSecond = 0;
 
     private DebugServer() {}
 
@@ -62,8 +77,14 @@ public class DebugServer {
             server.createContext("/api/config/save", new SaveConfigApiHandler());
             server.createContext("/api/config/load", new LoadConfigApiHandler());
             server.createContext("/api/movement-logs", new MovementLogsApiHandler());
+            server.createContext("/api/speed", new SpeedApiHandler());
+            server.createContext("/api/packets", new PacketsApiHandler());
+            server.createContext("/api/latency", new LatencyApiHandler());
+            server.createContext("/api/yaw", new YawApiHandler());
             server.setExecutor(null);
             server.start();
+
+            EventBus.register(this);
 
             String localIp = getLocalIpAddress();
             isRunning = true;
@@ -83,9 +104,69 @@ public class DebugServer {
 
     public void stop() {
         if (!isRunning) return;
+        EventBus.unregister(this);
         server.stop(0);
         isRunning = false;
         log("Debug server stopped");
+    }
+
+    @Listener
+    public void onTick(TickEvent event) {
+        if (isRunning) {
+            tickMovement();
+            tickCounter++;
+
+            MinecraftClient mc = MinecraftClient.getInstance();
+            if (mc.player != null) {
+                double speed = Math.sqrt(
+                    mc.player.getVelocity().x * mc.player.getVelocity().x +
+                    mc.player.getVelocity().z * mc.player.getVelocity().z) * 20;
+                speedHistory.add(speed);
+                if (speedHistory.size() > 200) speedHistory.remove(0);
+
+                yawHistory.add((double) mc.player.getYaw());
+                pitchHistory.add((double) mc.player.getPitch());
+                if (yawHistory.size() > 200) yawHistory.remove(0);
+                if (pitchHistory.size() > 200) pitchHistory.remove(0);
+            }
+
+            if (tickCounter >= 20) {
+                tickCounter = 0;
+                packetInHistory.add(packetsInThisSecond);
+                packetOutHistory.add(packetsOutThisSecond);
+                if (packetInHistory.size() > 60) packetInHistory.remove(0);
+                if (packetOutHistory.size() > 60) packetOutHistory.remove(0);
+                packetsInThisSecond = 0;
+                packetsOutThisSecond = 0;
+
+                if (mc.player != null && mc.getNetworkHandler() != null) {
+                    var entry = mc.getNetworkHandler().getPlayerListEntry(mc.player.getUuid());
+                    latencyHistory.add(entry != null ? entry.getLatency() : 0);
+                } else {
+                    latencyHistory.add(0);
+                }
+                if (latencyHistory.size() > 60) latencyHistory.remove(0);
+            }
+        }
+    }
+
+    @Listener
+    public void onPacket(PacketEvent event) {
+        if (!isRunning) return;
+        if (event.getOrigin() == PacketEvent.TransferOrigin.SEND) {
+            packetsOutThisSecond++;
+        } else {
+            packetsInThisSecond++;
+            if (event.getPacket() instanceof GameMessageS2CPacket chatPacket) {
+                addChatMessage(chatPacket.content().getString());
+            }
+        }
+    }
+
+    @Listener
+    public void onChat(ChatEvent event) {
+        if (!isRunning) return;
+        addChatMessage("[You] " + event.getContent());
     }
 
     public void log(String message) {
@@ -573,6 +654,12 @@ public class DebugServer {
                 String command = extractJsonValue(body, "command");
                 if (!command.isEmpty()) {
                     log("Executing command: " + command);
+                    MinecraftClient mc = MinecraftClient.getInstance();
+                    mc.execute(() -> {
+                        if (mc.player != null) {
+                            mc.player.networkHandler.sendChatCommand(command);
+                        }
+                    });
                 }
                 sendJsonResponse(exchange, "{\"success\":true}");
             }
@@ -584,7 +671,29 @@ public class DebugServer {
         public void handle(HttpExchange exchange) throws IOException {
             StringBuilder json = new StringBuilder();
             json.append("{\"configs\":[");
-            json.append("{\"name\":\"Default\"}");
+            boolean first = true;
+            try {
+                java.nio.file.Path configDir = java.nio.file.Paths.get(
+                    System.getProperty("user.home"), ".advicenext", "modules");
+                if (java.nio.file.Files.exists(configDir)) {
+                    try (var stream = java.nio.file.Files.list(configDir)) {
+                        for (var file : stream.sorted(java.util.Comparator.reverseOrder()).toList()) {
+                            String name = file.getFileName().toString();
+                            if (name.endsWith(".json")) {
+                                name = name.substring(0, name.length() - 5);
+                                if (!first) json.append(",");
+                                json.append("{\"name\":\"").append(name).append("\"}");
+                                first = false;
+                            }
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                log("Failed to list configs: " + e.getMessage());
+            }
+            if (first) {
+                json.append("{\"name\":\"Default\"}");
+            }
             json.append("]}");
             sendJsonResponse(exchange, json.toString());
         }
@@ -637,7 +746,85 @@ public class DebugServer {
             sendJsonResponse(exchange, json.toString());
         }
     }
-    
+
+    private class SpeedApiHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            StringBuilder json = new StringBuilder();
+            json.append("{\"speed\":[");
+            boolean first = true;
+            for (Double speed : speedHistory) {
+                if (!first) json.append(",");
+                json.append(String.format("%.2f", speed));
+                first = false;
+            }
+            json.append("]}");
+            sendJsonResponse(exchange, json.toString());
+        }
+    }
+
+    private class PacketsApiHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            StringBuilder json = new StringBuilder();
+            json.append("{\"in\":[");
+            boolean first = true;
+            for (Integer count : packetInHistory) {
+                if (!first) json.append(",");
+                json.append(count);
+                first = false;
+            }
+            json.append("],\"out\":[");
+            first = true;
+            for (Integer count : packetOutHistory) {
+                if (!first) json.append(",");
+                json.append(count);
+                first = false;
+            }
+            json.append("]}");
+            sendJsonResponse(exchange, json.toString());
+        }
+    }
+
+    private class LatencyApiHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            StringBuilder json = new StringBuilder();
+            json.append("{\"latency\":[");
+            boolean first = true;
+            for (Integer ping : latencyHistory) {
+                if (!first) json.append(",");
+                json.append(ping);
+                first = false;
+            }
+            json.append("]}");
+            sendJsonResponse(exchange, json.toString());
+        }
+    }
+
+    private class YawApiHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            StringBuilder json = new StringBuilder();
+            json.append("{\"yaw\":[");
+            boolean first = true;
+            for (Double yaw : yawHistory) {
+                if (!first) json.append(",");
+                json.append(String.format("%.1f", yaw));
+                first = false;
+            }
+            json.append("],\"pitch\":[");
+            first = true;
+            for (Double pitch : pitchHistory) {
+                if (!first) json.append(",");
+                json.append(String.format("%.1f", pitch));
+                first = false;
+            }
+            json.append("]}");
+            sendJsonResponse(exchange, json.toString());
+        }
+    }
+
     private String extractJsonValue(String json, String key) {
         try {
             java.util.regex.Pattern pattern = java.util.regex.Pattern.compile(

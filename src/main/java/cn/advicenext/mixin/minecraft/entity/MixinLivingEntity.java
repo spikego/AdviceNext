@@ -5,10 +5,16 @@ import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.entity.LivingEntity;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(LivingEntity.class)
 public abstract class MixinLivingEntity {
+
+    @Shadow
+    protected boolean jumping;
 
     /**
      * 疾跑跳跃冲量方向修正：LivingEntity.jump() 在疾跑时向 getYaw() 方向
@@ -25,4 +31,5 @@ public abstract class MixinLivingEntity {
         if ((Object) this != MinecraftClient.getInstance().player) return original;
         return MovementCorrection.correctYaw(original);
     }
+
 }

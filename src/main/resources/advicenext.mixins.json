@@ -5,6 +5,7 @@
   "refmap": "advice-next-refmap.json",
   "mixins": [
     "minecraft.client.MixinMinecraftClient",
+    "minecraft.client.MixinMouse",
     "minecraft.entity.MixinEntity",
     "minecraft.entity.MixinLivingEntity",
     "minecraft.entity.MixinPlayerEntity",
@@ -24,15 +25,19 @@
     "minecraft.client.MixinKeyboardInputSprint",
     "minecraft.client.MixinRenderTickCounter",
     "minecraft.client.MixinWindow",
-    
     "minecraft.entity.MixinClientPlayerEntity",
+    "minecraft.gui.MixinChatHud",
     "minecraft.gui.MixinInGameHud",
     "minecraft.gui.MixinSplashOverlay",
     "minecraft.gui.MixinTitleScreen",
-    "minecraft.network.MixinClientPlayNetworkHandler",
     "minecraft.network.MixinClientPlayerInteractionManager",
+    "minecraft.network.MixinClientPlayNetworkHandler",
     "minecraft.render.MixinCamera",
+    "minecraft.render.MixinEntityRenderer",
     "minecraft.render.MixinGameRenderer",
-    "minecraft.render.MixinLivingEntityRenderer"
+    "minecraft.render.MixinHeldItemRenderer",
+    "minecraft.render.MixinLivingEntityRenderer",
+    "minecraft.render.MixinWorldRenderer",
+    "minecraft.texture.MixinPlayerSkinTextureDownloader"
   ]
 }

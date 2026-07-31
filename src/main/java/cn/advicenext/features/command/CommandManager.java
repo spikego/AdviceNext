@@ -25,6 +25,8 @@ public class CommandManager {
         commands.add(new ConfigCommand());
         commands.add(new ScriptCommand());
         commands.add(new DebugCommand());
+        commands.add(new IRCCommand());
+        commands.add(new TeleportCommand());
     }
 
     public static void processCommand(String input) {
@@ -67,7 +69,7 @@ public class CommandManager {
         }
 
         String withoutPrefix = input.substring(commandPrefix.length());
-        String[] args = withoutPrefix.split(" ");
+        String[] args = withoutPrefix.split(" ", -1);
 
         // 命令名称补全
         if (args.length == 1) {

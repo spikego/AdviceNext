@@ -96,6 +96,10 @@ public class Module {
         return key;
     }
 
+    public String getDescription() {
+        return description;
+    }
+
     public Category getCategory() {
         return category;
     }
