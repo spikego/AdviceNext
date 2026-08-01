@@ -118,6 +118,13 @@ public abstract class MixinSplashOverlay {
         }
 
         if (reloadCompleteTime != -1) {
+            if (mc.world != null) {
+                if (mc.getOverlay() instanceof SplashOverlay) {
+                    mc.setOverlay(null);
+                }
+                return;
+            }
+
             float fadeT = (now - reloadCompleteTime) / 500f;
 
             if (fadeT >= 1.0f) {
